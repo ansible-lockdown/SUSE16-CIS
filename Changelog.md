@@ -23,6 +23,7 @@
 - suse16cis_tmp_svc defaults to auto - /tmp method discovered from tmp.mount
 - tmp.mount enabled and unmasked when the systemd method is used
 - README rendered from the canonical template
+- remount_tmp handler switched from include_tasks to import_tasks
 
 ## August 2026 - QA findings remediation
 
