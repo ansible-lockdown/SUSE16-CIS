@@ -1,0 +1,210 @@
+---
+
+- name: "1.7.1 | PATCH | Ensure /etc/motd is configured"
+  when: suse16cis_rule_1_7_1
+  tags:
+    - level1-server
+    - level1-workstation
+    - banner
+    - patch
+    - rule_1.7.1
+    - NIST800-53R5_SC-8
+  block:
+    - name: "1.7.1 | PATCH | Ensure /etc/motd is configured | motd"
+      ansible.builtin.file:
+        path: /etc/motd
+        state: absent
+
+    - name: "1.7.1 | PATCH | Ensure /etc/motd is configured | check pam sshd exists"
+      when: suse16cis_disable_dynamic_motd
+      ansible.builtin.stat:
+        path: /etc/pam.d/sshd
+      register: discovered_pam_sshd
+
+    - name: "1.7.1 | PATCH | Ensure /etc/motd is configured | disable dynamic_motd"
+      when:
+        - suse16cis_disable_dynamic_motd
+        - discovered_pam_sshd.stat.exists
+      ansible.builtin.lineinfile:
+        path: /etc/pam.d/sshd
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        backrefs: true
+      loop:
+        - { regexp: '(session\s+optional\s+pam_motd.so\s+motd=/run/motd.dynamic)', line: '# \1' }
+        - { regexp: '(session\s+optional\s+pam_motd.so noupdate)', line: '# \1' }
+        - { regexp: '# Pam_motd.so disabled for CIS benchmark', line: '# Pam_motd.so disabled for CIS benchmark' }
+      loop_control:
+        label: "{{ item }}"
+
+- name: "1.7.2 | PATCH | Ensure /etc/issue is configured"
+  when: suse16cis_rule_1_7_2
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - rule_1.7.2
+    - NIST800-53R5_CM-1
+    - NIST800-53R5_CM-3
+    - NIST800-53R5_CM-6
+  ansible.builtin.template:
+    src: etc/issue.j2
+    dest: /etc/issue
+    owner: root
+    group: root
+    mode: 'u-x,go-wx'
+
+- name: "1.7.3 | PATCH | Ensure /etc/issue.net is configured"
+  when: suse16cis_rule_1_7_3
+  tags:
+    - level1-server
+    - level1-workstation
+    - banner
+    - patch
+    - rule_1.7.3
+    - NIST800-53R5_CM-1
+    - NIST800-53R5_CM-3
+    - NIST800-53R5_CM-6
+  ansible.builtin.template:
+    src: etc/issue.net.j2
+    dest: /etc/issue.net
+    owner: root
+    group: root
+    mode: 'u-x,go-wx'
+
+- name: "1.7.4 | PATCH | Ensure pam_motd is configured"
+  when: suse16cis_rule_1_7_4
+  tags:
+    - level1-server
+    - level1-workstation
+    - banner
+    - patch
+    - rule_1.7.4
+    - NIST800-53R5_SC-8
+  block:
+    - name: "1.7.4 | AUDIT | Ensure pam_motd is configured | Find pam files referencing pam_motd"
+      ansible.builtin.find:
+        paths:
+          - /etc/pam.d
+        patterns: 'sshd,login,su,gdm-password'
+        contains: '^\s*session\s+(required|optional)\s+pam_motd\.so\b.*\bmotd='
+      register: discovered_pam_motd_files
+
+    - name: "1.7.4 | PATCH | Ensure pam_motd is configured | Comment out pam_motd motd= entries"
+      when: discovered_pam_motd_files.files | length > 0
+      ansible.builtin.replace:
+        path: "{{ item.path }}"
+        regexp: '^(\s*session\s+(?:required|optional)\s+pam_motd\.so\b.*\bmotd=.*)$'
+        replace: '# \1'
+      loop: "{{ discovered_pam_motd_files.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+- name: "1.7.5 | PATCH | Ensure sshd warning Banner is configured"
+  when: suse16cis_rule_1_7_5
+  tags:
+    - level1-server
+    - level1-workstation
+    - banner
+    - patch
+    - rule_1.7.5
+    - NIST800-53R5_SC-8
+  block:
+    - name: "1.7.5 | AUDIT | Ensure sshd warning Banner is configured | Discover banner file"
+      ansible.builtin.shell: |
+        set -o pipefail
+        sshd -T 2>/dev/null | awk '$1 == "banner" {print $2}'
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      args:
+        executable: "{{ suse16cis_shell_executable }}"
+      register: discovered_sshd_banner_file
+
+    - name: "1.7.5 | PATCH | Ensure sshd warning Banner is configured | Remove OS detail from banner"
+      when:
+        - discovered_sshd_banner_file.stdout | trim | length > 0
+        - discovered_sshd_banner_file.stdout | trim != 'none'
+      ansible.builtin.replace:
+        path: "{{ discovered_sshd_banner_file.stdout | trim }}"
+        regexp: "(\\\\v|\\\\r|\\\\m|\\\\s|{{ ansible_facts['distribution'] }})"
+        replace: ''
+
+- name: "1.7.6 | PATCH | Ensure access to /etc/motd is configured"
+  when: suse16cis_rule_1_7_6
+  tags:
+    - level1-server
+    - level1-workstation
+    - perms
+    - patch
+    - rule_1.7.6
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  ansible.builtin.file:
+    path: /etc/motd
+    owner: root
+    group: root
+    mode: 'u-x,go-wx'
+    state: file
+  failed_when: false
+
+- name: "1.7.7 | PATCH | Ensure access to /etc/issue is configured"
+  when: suse16cis_rule_1_7_7
+  tags:
+    - level1-server
+    - level1-workstation
+    - perms
+    - patch
+    - rule_1.7.7
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  ansible.builtin.file:
+    path: /etc/issue
+    owner: root
+    group: root
+    mode: 'u-x,go-wx'
+
+- name: "1.7.8 | PATCH | Ensure access to /etc/issue.net is configured"
+  when: suse16cis_rule_1_7_8
+  tags:
+    - level1-server
+    - level1-workstation
+    - perms
+    - patch
+    - rule_1.7.8
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  ansible.builtin.file:
+    path: /etc/issue.net
+    owner: root
+    group: root
+    mode: 'u-x,go-wx'
+
+- name: "1.7.9 | PATCH | Ensure access to sshd warning banner is configured"
+  when: suse16cis_rule_1_7_9
+  tags:
+    - level1-server
+    - level1-workstation
+    - perms
+    - patch
+    - rule_1.7.9
+  block:
+    - name: "1.7.9 | PATCH | Ensure access to sshd warning banner is configured | Get banner path"
+      ansible.builtin.shell: |
+        set -o pipefail
+        sshd -T 2>/dev/null | awk '/^banner /{print $2}'
+      changed_when: false
+      failed_when: false
+      args:
+        executable: "{{ suse16cis_shell_executable }}"
+      register: discovered_sshd_banner_path
+
+    - name: "1.7.9 | PATCH | Ensure access to sshd warning banner is configured | Set banner file permissions"
+      when:
+        - discovered_sshd_banner_path.stdout | length > 0
+        - discovered_sshd_banner_path.stdout | trim != 'none'
+      ansible.builtin.file:
+        path: "{{ discovered_sshd_banner_path.stdout | trim }}"
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'

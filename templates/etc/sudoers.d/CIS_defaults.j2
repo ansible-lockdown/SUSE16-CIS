@@ -1,0 +1,20 @@
+{{ file_managed_by_ansible }}
+# Based upon Defaults set by CIS Benchmark 1.0.0 SUSE16
+
+{% if suse16cis_rule_5_2_2 %}
+# Default to use a pseudo terminal
+# CIS 5.2.2
+Defaults use_pty
+{% endif %}
+
+{% if suse16cis_rule_5_2_3 %}
+# Default logfile location
+# CIS 5.2.3
+Defaults logfile="{{ suse16cis_sudolog_location }}"
+{% endif %}
+
+{% if suse16cis_rule_5_2_6 %}
+# timestamp timeout not more than 15mins
+# CIS 5.2.6
+Defaults timestamp_timeout={{ suse16cis_sudo_timestamp_timeout}}
+{% endif %}

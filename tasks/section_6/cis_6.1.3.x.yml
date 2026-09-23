@@ -1,0 +1,130 @@
+---
+
+- name: "6.1.3.1 | AUDIT | Ensure access to all logfiles has been configured"
+  when: suse16cis_rule_6_1_3_1
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - rule_6.1.3.1
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  block:
+    - name: "6.1.3.1 | PATCH | Ensure access to all logfiles has been configured | find log files"
+      ansible.builtin.find:
+        path: /var/log
+        file_type: file
+      register: discovered_logfiles
+
+    - name: "6.1.3.1 | PATCH | Ensure access to all logfiles has been configured | change permissions zypper log dir min 644"
+      when:
+        - discovered_logfiles.files | length > 0
+        - item.path is match("/var/log/(zypp/.*|zypper\\.log.*)")
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        mode: 'u-x,go-wx'
+        owner: "{{ 'root' if item.pw_name not in ['root'] else omit }}"
+        group: "{{ 'adm' if item.gr_name not in ['root', 'adm'] else omit }}"
+      failed_when: discovered_logfile_zypp_list.state not in ['file', 'absent']
+      register: discovered_logfile_zypp_list
+      loop: "{{ discovered_logfiles.files }}"
+
+    - name: "6.1.3.1 | PATCH | Ensure access to all logfiles has been configured | change permissions tmp min 664"
+      when:
+        - discovered_logfiles.files | length > 0
+        - item.path is not match("/var/log/(zypp/.*|zypper\\.log.*)")
+        - item.path is match("/var/log/((u|b|w)tmp.*|lastlog.*|README)")
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        mode: 'ug-x,o-wx'
+        owner: "{{ 'root' if item.pw_name not in ['root'] else omit }}"
+        group: "{{ 'utmp' if item.gr_name not in ['root', 'utmp'] else omit }}"
+      failed_when: discovered_logfile_tmp_list.state not in '[ file, absent ]'
+      register: discovered_logfile_tmp_list
+      loop: "{{ discovered_logfiles.files }}"
+
+    - name: "6.1.3.1 | PATCH | Ensure access to all logfiles has been configured | change permissions cloud-init/localmessages/waagent min 660"
+      when:
+        - discovered_logfiles.files | length > 0
+        - item.path is not match("/var/log/(zypp/.*|zypper\\.log.*)")
+        - item.path is match("/var/log/(cloud-init\.log.*|localmessages.*|waagent\.log.*)")
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        mode: 'u-x,go-wx'
+        owner: "{{ 'root' if item.pw_name not in ['root', 'syslog'] else omit }}"
+        group: "{{ 'adm' if item.gr_name not in ['root', 'adm'] else omit }}"
+      failed_when: discovered_logfile_list.state not in '[ file, absent ]'
+      register: discovered_logfile_list
+      loop: "{{ discovered_logfiles.files }}"
+
+    - name: "6.1.3.1 | PATCH | Ensure access to all logfiles has been configured | change permissions secure/auth.log/syslog/messages min 640"
+      when:
+        - discovered_logfiles.files | length > 0
+        - item.path is not match("/var/log/(zypp/.*|zypper\\.log.*)")
+        - item.path is search("/(secure(,\*\.\*|\.\*|-\*)?|auth\.log|syslog|messages)$")
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        mode: 'u-x,g-wx,o-rwx'
+        owner: "{{ 'root' if item.pw_name not in ['root', 'syslog'] else omit }}"
+        group: "{{ 'adm' if item.gr_name not in ['root', 'adm'] else omit }}"
+      failed_when: discovered_logfile_secure_list.state not in '[ file, absent ]'
+      register: discovered_logfile_secure_list
+      loop: "{{ discovered_logfiles.files }}"
+
+    - name: "6.1.3.1 | PATCH | Ensure access to all logfiles has been configured | change permissions SSSD min 660"
+      when:
+        - discovered_logfiles.files | length > 0
+        - item.path is search("/(sssd|SSSD)(/|$)")
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        mode: 'ug-x,o-rwx'
+        owner: "{{ 'root' if item.pw_name not in ['root', 'sssd', 'SSSD'] else omit }}"
+        group: "{{ 'sssd' if item.gr_name not in ['root', 'sssd', 'SSSD'] else omit }}"
+      failed_when: discovered_logfile_sssd_list.state not in '[ file, absent ]'
+      register: discovered_logfile_sssd_list
+      loop: "{{ discovered_logfiles.files }}"
+
+    - name: "6.1.3.1 | PATCH | Ensure access to all logfiles has been configured | change permissions gdm min 660"
+      when:
+        - discovered_logfiles.files | length > 0
+        - item.path is search("/(gdm|gdm3)(/|$)")
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        mode: 'ug-x,o-rwx'
+        owner: "{{ 'root' if item.pw_name not in ['root'] else omit }}"
+        group: "{{ 'gdm' if item.gr_name not in ['root', 'gdm', 'gdm3'] else omit }}"
+      failed_when: discovered_logfile_gdm_list.state not in '[ file, absent ]'
+      register: discovered_logfile_gdm_list
+      loop: "{{ discovered_logfiles.files }}"
+
+    - name: "6.1.3.1 | PATCH | Ensure access to all logfiles has been configured | change permissions journal min 640"
+      when:
+        - discovered_logfiles.files | length > 0
+        - item.path is search("\.journal~?$")
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        mode: 'u-x,g-wx,o-rwx'
+        owner: "{{ 'root' if item.pw_name not in ['root'] else omit }}"
+        group: "{{ 'systemd-journal' if item.gr_name not in ['root', 'systemd-journal'] else omit }}"
+      failed_when: discovered_logfile_journal_list.state not in '[ file, absent ]'
+      register: discovered_logfile_journal_list
+      loop: "{{ discovered_logfiles.files }}"
+
+    - name: "6.1.3.1 | PATCH | Ensure access to all logfiles has been configured | change permissions else all 640"
+      when:
+        - discovered_logfiles.files | length > 0
+        - item.path is not match("/var/log/(zypp/.*|zypper\\.log.*)")
+        - item.path is not match("/var/log/((u|b|w)tmp.*|lastlog.*|README)")
+        - item.path is not match("/var/log/(cloud-init\.log.*|localmessages.*|waagent\.log.*)")
+        - item.path is not search("/(secure(,\*\.\*|\.\*|-\*)?|auth\.log|syslog|messages)$")
+        - item.path is not search("/(sssd|SSSD)(/|$)")
+        - item.path is not search("/(gdm|gdm3)(/|$)")
+        - item.path is not search("\.journal~?$")
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        mode: 'u-x,g-wx,o-rwx'
+        owner: "{{ 'root' if item.pw_name not in ['root', 'syslog'] else omit }}"
+        group: "{{ 'adm' if item.gr_name not in ['root', 'adm'] else omit }}"
+      failed_when: discovered_logfile_all_list.state not in '[ file, absent ]'
+      register: discovered_logfile_all_list
+      loop: "{{ discovered_logfiles.files }}"

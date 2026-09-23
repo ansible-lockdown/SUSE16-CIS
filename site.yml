@@ -1,0 +1,7 @@
+---
+
+- name: Apply SUSE 16 CIS hardening
+  hosts: all
+  become: true
+  roles:
+    - role: "{{ playbook_dir }}"

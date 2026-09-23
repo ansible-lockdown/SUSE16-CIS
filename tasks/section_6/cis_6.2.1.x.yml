@@ -1,0 +1,90 @@
+---
+
+- name: "6.2.1.1 | PATCH | Ensure auditd packages are installed"
+  when: suse16cis_rule_6_2_1_1
+  tags:
+    - level2-server
+    - level2-workstation
+    - patch
+    - auditd
+    - rule_6.2.1.1
+    - NIST800-53R5_AU-2
+    - NIST800-53R5_AU-3
+    - NIST800-53R5_AU-12
+    - NIST800-53R5_SI-5
+  ansible.builtin.package:
+    name: audit
+    state: present
+
+- name: "6.2.1.2 | PATCH | Ensure auditd service is enabled and active"
+  when:
+    - suse16cis_rule_6_2_1_2
+    - not system_is_container
+  tags:
+    - level2-server
+    - level2-workstation
+    - patch
+    - auditd
+    - rule_6.2.1.2
+    - NIST800-53R5_AU-2
+    - NIST800-53R5_AU-12
+    - NIST800-53R5_SI-5
+  ansible.builtin.systemd:
+    name: auditd
+    state: started
+    enabled: true
+
+- name: "6.2.1.3 | PATCH | Ensure auditing for processes that start prior to auditd is enabled"
+  when:
+    - suse16cis_rule_6_2_1_3
+    - not system_is_container
+  tags:
+    - level2-server
+    - level2-workstation
+    - patch
+    - auditd
+    - grub
+    - rule_6.2.1.3
+  block:
+    - name: "6.2.1.3 | PATCH | Ensure auditing for processes that start prior to auditd is enabled | Update setting if exists"
+      ansible.builtin.replace:
+        path: /etc/default/grub
+        regexp: '^(GRUB_CMDLINE_LINUX="(?:[^"\n]*[ \t])?audit=)(?!1[ \t"])[^ \t"\n]*'
+        replace: '\g<1>1'
+      notify: Grub update
+
+    - name: "6.2.1.3 | PATCH | Ensure auditing for processes that start prior to auditd is enabled | Add setting if doesn't exist"
+      ansible.builtin.replace:
+        path: /etc/default/grub
+        regexp: '^(GRUB_CMDLINE_LINUX="(?!(?:[^"\n]*[ \t])?audit=)[^"\n]*?)[ \t]*"'
+        replace: '\g<1> audit=1"'
+      notify: Grub update
+
+- name: "6.2.1.4 | PATCH | Ensure audit_backlog_limit is configured"
+  when:
+    - suse16cis_rule_6_2_1_4
+    - not system_is_container
+  tags:
+    - level2-server
+    - level2-workstation
+    - patch
+    - auditd
+    - grub
+    - rule_6.2.1.4
+    - NIST800-53R5_AU-2
+    - NIST800-53R5_AU-12
+    - NIST800-53R5_SI-5
+  block:
+    - name: "6.2.1.4 | PATCH | Ensure audit_backlog_limit is configured | Update setting if exists"
+      ansible.builtin.replace:
+        path: /etc/default/grub
+        regexp: '^(GRUB_CMDLINE_LINUX="(?:[^"\n]*[ \t])?audit_backlog_limit=)(?!{{ suse16cis_audit_back_log_limit }}[ \t"])[^ \t"\n]*'
+        replace: '\g<1>{{ suse16cis_audit_back_log_limit }}'
+      notify: Grub update
+
+    - name: "6.2.1.4 | PATCH | Ensure audit_backlog_limit is configured | Add setting if doesn't exist"
+      ansible.builtin.replace:
+        path: /etc/default/grub
+        regexp: '^(GRUB_CMDLINE_LINUX="(?!(?:[^"\n]*[ \t])?audit_backlog_limit=)[^"\n]*?)[ \t]*"'
+        replace: '\g<1> audit_backlog_limit={{ suse16cis_audit_back_log_limit }}"'
+      notify: Grub update

@@ -1,0 +1,191 @@
+---
+
+# Preliminary tasks that should always be run
+# List users in order to look files inside each home directory
+
+- name: "PRELIM | Update package repositories cache"
+  tags: always
+  ansible.builtin.command: zypper refresh
+  changed_when: false
+  check_mode: false
+
+- name: "PRELIM | Gather the package facts"
+  tags: always
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: "PRELIM | Include pre-remediation audit tasks"
+  when: run_audit or audit_only
+  tags: run_audit
+  ansible.builtin.import_tasks: pre_remediation_audit.yml
+
+- name: "PRELIM | AUDIT | Interactive Users"
+  tags: always
+  ansible.builtin.shell: |
+    set -o pipefail
+    grep -E -v '^(root|halt|sync|shutdown)' /etc/passwd | awk -F: '(!index($7, "sbin/nologin") && $7 != "/bin/nologin" && $7 != "/bin/false" && $7 != "/dev/null") { print $1":"$3":"$6 }'
+  changed_when: false
+  check_mode: false
+  register: prelim_interactive_users_raw
+
+- name: "PRELIM | AUDIT | Interactive Users (reformat)"
+  tags: always
+  ansible.builtin.set_fact:
+    prelim_interactive_users: "{{ prelim_interactive_users | default([]) + [dict([('username', item.split(':')[0]), ('uid', item.split(':')[1]), ('home', item.split(':')[2])])] }}"
+  loop: "{{ prelim_interactive_users_raw.stdout_lines }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: "PRELIM | AUDIT | Interactive User accounts home directories"
+  tags: always
+  ansible.builtin.shell: |
+      set -o pipefail
+      grep -E -v '^(root|halt|sync|shutdown)' /etc/passwd | awk -F: '(!index($7, "sbin/nologin") && $7 != "/bin/nologin" && $7 != "/bin/false" && $7 != "/dev/null") { print $6 }'
+  changed_when: false
+  check_mode: false
+  args:
+    executable: "{{ suse16cis_shell_executable }}"
+  register: prelim_interactive_users_home
+
+- name: "PRELIM | AUDIT | capture /etc/password variables"
+  tags: always
+  ansible.builtin.include_tasks:
+    file: parse_etc_password.yml
+
+- name: PRELIM | AUDIT | Section 1.1 | Retrieve mount options
+  tags: always
+  block:
+    - name: PRELIM | AUDIT | Section 1.1 | Retrieve mount options - call mount  # noqa command-instead-of-module
+      ansible.builtin.shell: |
+        set -o pipefail
+        mount | awk '{print $1, $3, $5, $6}'
+      changed_when: false
+      check_mode: false
+      args:
+        executable: "{{ suse16cis_shell_executable }}"
+      register: prelim_mount_output
+
+    - name: PRELIM | AUDIT | Section 1.1 | Retrieve mount options - build fact  # This is inherited and used in mountpoints tasks
+      ansible.builtin.set_fact:
+        prelim_mount_point_fs_and_options: >-
+          {%- set prelim_mount_point_fs_and_options = {} -%}
+          {%- for line in prelim_mount_output.stdout_lines -%}
+          {%- set fields = line.split() -%}
+          {%- set _ = prelim_mount_point_fs_and_options.update({fields[1]: {'src': fields[0], 'fs_type': fields[2], 'original_options': fields[3][1:-1].split(','), 'options': fields[3][1:-1].split(',')}}) -%}
+          {%- endfor -%}
+          {{ prelim_mount_point_fs_and_options }}
+
+    - name: "PRELIM | AUDIT | Debug of mount variables to assist in troubleshooting"
+      when: suse16cis_debug_mount_data
+      ansible.builtin.debug:
+        msg: "{{ ['Output of mounts variables used for debug!!'] + prelim_mount_point_fs_and_options }}"
+
+- name: "PRELIM | AUDIT | Section 1.1.2.1 | Discover how /tmp is mounted"
+  when: suse16cis_tmp_svc == 'auto'
+  tags: always
+  ansible.builtin.systemd_service:
+    name: tmp.mount
+  check_mode: false
+  register: prelim_tmp_mount_source
+
+- name: "PRELIM | AUDIT | Section 1.1.2.1 | Set /tmp management method"
+  tags: always
+  ansible.builtin.set_fact:
+    prelim_tmp_svc: >-
+      {{ (prelim_tmp_mount_source.status.ActiveState == 'active' and
+          prelim_tmp_mount_source.status.SourcePath | default('') != '/etc/fstab')
+         if suse16cis_tmp_svc == 'auto'
+         else suse16cis_tmp_svc | bool }}
+
+- name: PRELIM | PATCH | Ensure cron is installed
+  when: suse16cis_rule_2_4_1_1 or
+        suse16cis_rule_2_4_1_2 or
+        suse16cis_rule_2_4_1_3 or
+        suse16cis_rule_2_4_1_4 or
+        suse16cis_rule_2_4_1_5 or
+        suse16cis_rule_2_4_1_6 or
+        suse16cis_rule_2_4_1_7 or
+        suse16cis_rule_2_4_1_8 or
+        suse16cis_aide_scan == "cron"
+  tags:
+    - level1-server
+    - level1-workstation
+    - cron
+    - suse16cis_section2
+  ansible.builtin.package:
+    name: cron
+    state: present
+
+- name: "PRELIM | PATCH | Set sshd config file"
+  when:
+    - suse16cis_sshd_config_file != '/etc/ssh/sshd_config'
+    - "'openssh-server' in ansible_facts['packages']"
+  tags: always
+  ansible.builtin.file:
+    path: "{{ suse16cis_sshd_config_file }}"
+    owner: root
+    group: root
+    mode: 'u-x,go-rwx'
+    state: touch
+
+- name: "PRELIM | AUDIT | Discover GNOME desktop environment"
+  tags: always
+  ansible.builtin.stat:
+    path: /usr/share/gnome/gnome-version.xml
+  register: prelim_gnome_present
+
+- name: "PRELIM | PATCH | Create pwquality directory"
+  when: not suse16cis_use_pam_config
+  tags: always
+  ansible.builtin.file:
+    path: /etc/security/pwquality.conf.d/
+    state: directory
+    mode: 'u+x,go-w'
+
+- name: "PRELIM | PATCH | find pw_quality files"
+  tags: always
+  ansible.builtin.find:
+    paths: /etc/security/
+    pattern: pwquality*
+  register: prelim_pwquality_files
+
+- name: "PRELIM | AUDIT | Discover Interactive UID MIN and MIN from logins.def"
+  tags: always
+  block:
+    - name: "PRELIM | AUDIT | Capture UID_MIN information from logins.def"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -w "^UID_MIN" /usr/etc/login.defs | awk '{print $NF}'
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      args:
+        executable: "{{ suse16cis_shell_executable }}"
+      register: prelim_uid_min_id
+
+    - name: "PRELIM | AUDIT | Capture UID_MAX information from logins.def"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -w "^UID_MAX" /usr/etc/login.defs | awk '{print $NF}'
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      args:
+        executable: "{{ suse16cis_shell_executable }}"
+      register: prelim_uid_max_id
+
+    - name: "PRELIM | AUDIT | Set_facts for interactive uid/gid"
+      ansible.builtin.set_fact:
+        min_int_uid: "{{ prelim_uid_min_id.stdout }}"
+        max_int_uid: "{{ prelim_uid_max_id.stdout }}"
+
+- name: "PRELIM | AUDIT | 6.2.2.x | Find journald conf files"
+  when:
+    - suse16cis_rule_6_2_2_2 or
+      suse16cis_rule_6_2_2_3 or
+      suse16cis_rule_6_2_2_4
+  tags: always
+  ansible.builtin.find:
+    paths: /etc/systemd/journald.conf.d
+    patterns: "*.conf"
+  register: prelim_journald_conf_files

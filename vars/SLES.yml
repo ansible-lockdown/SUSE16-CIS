@@ -1,0 +1,7 @@
+---
+# vars file for SUSE16-CIS
+
+# SLES specific Variables
+
+os_gpg_key_pubkey_name: "gpg-pubkey-09d9ea69-68595a8c"
+os_gpg_key_pubkey_content: "SUSE 16 Package Signing Key <build-suse16@suse.de> 09d9ea69"

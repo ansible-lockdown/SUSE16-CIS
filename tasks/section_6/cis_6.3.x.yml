@@ -1,0 +1,129 @@
+---
+
+- name: "6.3.1 | PATCH | Ensure AIDE is installed"
+  when:
+    - suse16cis_config_aide
+    - suse16cis_rule_6_3_1
+  tags:
+    - level1-server
+    - level1-workstation
+    - aide
+    - patch
+    - rule_6.3.1
+    - NIST800-53R5_AU-2
+  block:
+    - name: "6.3.1 | PATCH | Ensure AIDE is installed | Install packages"
+      ansible.builtin.package:
+        name: "{{ aide_packages }}"
+        state: present
+        update_cache: true
+      register: discovered_aide_pkg_added
+
+    - name: "6.3.1 | PATCH | Ensure AIDE is installed | Recapture packages"
+      when: discovered_aide_pkg_added.skipped is not defined
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: "6.3.1 | AUDIT | Ensure AIDE is installed | Check db file exists"
+      ansible.builtin.stat:
+        path: "{{ suse16cis_aide_db_file }}"
+      register: discovered_aide_db_file
+
+    - name: "6.3.1 | AUDIT | Ensure AIDE is installed | Check current db file age"
+      when: discovered_aide_db_file.stat.exists
+      ansible.builtin.find:
+        path: "{{ suse16cis_aide_db_file | dirname }}"
+        pattern: "{{ suse16cis_aide_db_file | basename }}"
+        age: "{{ suse16cis_aide_db_file_age }}"
+      register: discovered_aide_db_age
+
+    - name: "6.3.1 | PATCH | Ensure AIDE is installed | Configure AIDE"
+      when:
+        - not ansible_check_mode
+        - not discovered_aide_db_file.stat.exists or
+          (discovered_aide_db_age.files | length > 0) or
+          suse16cis_aide_db_recreate
+      block:
+        - name: "6.3.1 | PATCH | Ensure AIDE is installed | Build AIDE DB"
+          ansible.builtin.command: "{{ aide_initiate_command }}"
+          changed_when: true
+
+        - name: "6.3.1 | PATCH | Ensure AIDE is installed | Wait for db file"
+          ansible.builtin.wait_for:
+            path: /var/lib/aide/aide.db.new
+
+        - name: "6.3.1 | PATCH | Ensure AIDE is installed | Copy AIDE DB"
+          ansible.builtin.copy:
+            src: /var/lib/aide/aide.db.new
+            dest: /var/lib/aide/aide.db
+            remote_src: true
+            mode: 'u-x,g-wx,o-rwx'
+
+- name: "6.3.2 | PATCH | Ensure filesystem integrity is regularly checked"
+  when:
+    - suse16cis_rule_6_3_2
+    - not system_is_ec2
+  tags:
+    - level1-server
+    - level1-workstation
+    - aide
+    - file_integrity
+    - patch
+    - rule_6.3.2
+    - NIST800-53R5_AU-2
+  block:
+    - name: "6.3.2 | PATCH | Ensure filesystem integrity is regularly checked | cron"
+      when: suse16cis_aide_scan == "cron"
+      ansible.builtin.cron:
+        name: Run AIDE integrity check
+        cron_file: "{{ suse16cis_aide_cron_file }}"
+        user: "{{ suse16cis_aide_cron_user }}"
+        minute: "{{ suse16cis_aide_cron_minute | default('0') }}"
+        hour: "{{ suse16cis_aide_cron_hour | default('5') }}"
+        day: "{{ suse16cis_aide_cron_day | default('*') }}"
+        month: "{{ suse16cis_aide_cron_month | default('*') }}"
+        weekday: "{{ suse16cis_aide_cron_weekday | default('*') }}"
+        job: "{{ suse16cis_aide_cron_job }}"
+
+    - name: "6.3.2 | PATCH | Ensure filesystem integrity is regularly checked | aidecheck service"
+      when: suse16cis_aide_scan == "timer"
+      ansible.builtin.systemd:
+        name: aidecheck.service
+        enabled: true
+
+    - name: "6.3.2 | PATCH | Ensure filesystem integrity is regularly checked | aidecheck timer"
+      when: suse16cis_aide_scan == "timer"
+      ansible.builtin.systemd:
+        name: aidecheck.timer
+        state: started
+        enabled: true
+
+- name: "6.3.3 | PATCH | Ensure cryptographic mechanisms are used to protect the integrity of audit tools"
+  when:
+    - suse16cis_rule_6_3_3
+    - not system_is_ec2
+  tags:
+    - level2-server
+    - level2-workstation
+    - aide
+    - file_integrity
+    - patch
+    - rule_6.3.3
+  block:
+    - name: "6.3.3 | AUDIT | Ensure cryptographic mechanisms are used to protect the integrity of audit tools | Check aide config"
+      ansible.builtin.stat:
+        path: "{{ suse16cis_aide_conf_file }}"
+      register: discovered_aide_conf
+
+    - name: "6.3.3 | PATCH | Ensure cryptographic mechanisms are used to protect the integrity of audit tools | Add audit tools"
+      when: discovered_aide_conf.stat.exists
+      ansible.builtin.blockinfile:
+        path: "{{ suse16cis_aide_conf_file }}"
+        marker: "# {mark} Audit tools - CIS benchmark - Ansible-lockdown"
+        block: |
+          /usr/sbin/auditctl p+i+n+u+g+s+b+acl+xattrs+sha512
+          /usr/sbin/auditd p+i+n+u+g+s+b+acl+xattrs+sha512
+          /usr/sbin/augenrules p+i+n+u+g+s+b+acl+xattrs+sha512
+          /usr/sbin/aureport p+i+n+u+g+s+b+acl+xattrs+sha512
+          /usr/sbin/ausearch p+i+n+u+g+s+b+acl+xattrs+sha512
+        validate: aide -D --config %s

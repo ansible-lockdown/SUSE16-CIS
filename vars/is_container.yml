@@ -1,0 +1,267 @@
+---
+
+# File to skip controls if container
+# Based on standard image no changes
+# it expected all pkgs required for the container are already installed
+
+## controls
+
+# Firewall
+suse16cis_firewall: None
+suse16cis_firewall_package: "none"
+
+# compliance facts include run timestamp - not idempotent in molecule/containers
+create_benchmark_facts: false
+
+# GUI / GDM - not applicable in containers
+suse16cis_gui: false
+
+## Related individual rules
+# bootloader
+suse16cis_rule_1_4_1: false
+suse16cis_rule_1_4_2: false
+
+# AppArmor / SELinux benchmark IDs
+suse16cis_rule_1_3_1_1: false
+suse16cis_rule_1_3_1_2: false
+suse16cis_rule_1_3_1_3: false
+suse16cis_rule_1_3_1_4: false
+suse16cis_rule_1_3_1_5: false
+suse16cis_rule_1_3_1_6: false
+suse16cis_rule_1_3_1_7: false
+suse16cis_rule_1_3_1_8: false
+
+# GDM
+suse16cis_rule_1_8_1: false
+suse16cis_rule_1_8_2: false
+suse16cis_rule_1_8_3: false
+suse16cis_rule_1_8_4: false
+suse16cis_rule_1_8_5: false
+suse16cis_rule_1_8_6: false
+suse16cis_rule_1_8_7: false
+
+# time sync
+suse16cis_rule_2_3_1_1: false
+suse16cis_rule_2_3_1_2: false
+
+# systemd - not applicable in containers
+suse16cis_rule_1_5_8: false
+suse16cis_rule_1_5_9: false
+suse16cis_rule_2_4_1_1: false
+suse16cis_rule_2_4_3_1: false
+suse16cis_rule_2_4_3_2: false
+suse16cis_rule_2_4_3_3: false
+suse16cis_rule_2_4_3_4: false
+suse16cis_rule_6_1_1_1: false
+suse16cis_rule_6_1_1_2: false
+suse16cis_rule_6_1_1_3: false
+suse16cis_rule_6_1_1_4: false
+suse16cis_rule_6_1_1_5: false
+suse16cis_rule_6_1_1_6: false
+suse16cis_rule_6_1_1_7: false
+
+# special purpose services
+suse16cis_rule_2_1_1: false
+suse16cis_rule_2_1_2: false
+suse16cis_rule_2_1_3: false
+suse16cis_rule_2_1_4: false
+suse16cis_rule_2_1_5: false
+suse16cis_rule_2_1_6: false
+suse16cis_rule_2_1_7: false
+suse16cis_rule_2_1_8: false
+suse16cis_rule_2_1_9: false
+suse16cis_rule_2_1_10: false
+suse16cis_rule_2_1_11: false
+suse16cis_rule_2_1_12: false
+suse16cis_rule_2_1_13: false
+suse16cis_rule_2_1_14: false
+suse16cis_rule_2_1_15: false
+suse16cis_rule_2_1_16: false
+suse16cis_rule_2_1_17: false
+suse16cis_rule_2_1_18: false
+suse16cis_rule_2_1_19: false
+suse16cis_rule_2_1_20: false
+suse16cis_rule_2_1_21: false
+suse16cis_rule_2_1_22: false
+
+# ssh server
+suse16cis_rule_5_1_1: false
+suse16cis_rule_5_1_2: false
+suse16cis_rule_5_1_3: false
+suse16cis_rule_5_1_4: false
+suse16cis_rule_5_1_5: false
+suse16cis_rule_5_1_6: false
+suse16cis_rule_5_1_7: false
+suse16cis_rule_5_1_8: false
+
+# gpg keys
+suse16cis_rule_1_2_1_1: false
+suse16cis_rule_1_2_1_3: false
+
+# manual sticky bit
+suse16cis_rule_1_1_1_10: false
+
+# PAM - full layout not present in minimal container
+suse16cis_rule_5_2_7: false
+suse16cis_rule_5_3_2_1_1: false
+suse16cis_rule_5_3_2_1_2: false
+suse16cis_rule_5_3_2_1_3: false
+suse16cis_rule_5_3_2_2_1: false
+suse16cis_rule_5_3_2_2_2: false
+suse16cis_rule_5_3_2_2_3: false
+suse16cis_rule_5_3_2_2_4: false
+suse16cis_rule_5_3_2_2_5: false
+suse16cis_rule_5_3_2_2_6: false
+suse16cis_rule_5_3_2_2_7: false
+suse16cis_rule_5_3_2_3_1: false
+suse16cis_rule_5_3_2_3_2: false
+suse16cis_rule_5_3_2_3_3: false
+suse16cis_rule_5_3_2_4_1: false
+suse16cis_rule_5_3_2_4_2: false
+suse16cis_rule_5_3_2_4_3: false
+suse16cis_rule_5_3_2_4_4: false
+
+# login.defs - not present in minimal container
+suse16cis_rule_5_4_1_1: false
+suse16cis_rule_5_4_1_2: false
+suse16cis_rule_5_4_1_3: false
+suse16cis_rule_5_4_1_4: false
+suse16cis_rule_5_4_1_5: false
+suse16cis_rule_5_4_1_6: false
+suse16cis_rule_5_4_3_3: false
+
+# account shell controls - depend on interactive user discovery in minimal container
+suse16cis_rule_5_4_2_7: false
+suse16cis_rule_5_4_2_8: false
+
+# logging - journald/rsyslog
+suse16cis_rule_6_1_2_1: false
+suse16cis_rule_6_1_2_2: false
+suse16cis_rule_6_1_2_3: false
+suse16cis_rule_6_1_2_4: false
+suse16cis_rule_6_1_2_5: false
+suse16cis_rule_6_1_2_6: false
+suse16cis_rule_6_1_2_7: false
+suse16cis_rule_6_1_2_8: false
+suse16cis_rule_6_1_2_9: false
+suse16cis_rule_6_1_2_10: false
+suse16cis_rule_6_1_2_11: false
+suse16cis_rule_6_1_3_1: false
+
+# auditd install/config
+suse16cis_rule_6_2_1_1: false
+suse16cis_rule_6_2_1_2: false
+suse16cis_rule_6_2_1_3: false
+suse16cis_rule_6_2_1_4: false
+suse16cis_rule_6_2_2_1: false
+suse16cis_rule_6_2_2_2: false
+suse16cis_rule_6_2_2_3: false
+suse16cis_rule_6_2_2_4: false
+
+# auditd rules
+suse16cis_rule_6_2_3_1: false
+suse16cis_rule_6_2_3_2: false
+suse16cis_rule_6_2_3_3: false
+suse16cis_rule_6_2_3_4: false
+suse16cis_rule_6_2_3_5: false
+suse16cis_rule_6_2_3_6: false
+suse16cis_rule_6_2_3_7: false
+suse16cis_rule_6_2_3_8: false
+suse16cis_rule_6_2_3_9: false
+suse16cis_rule_6_2_3_10: false
+suse16cis_rule_6_2_3_11: false
+suse16cis_rule_6_2_3_12: false
+suse16cis_rule_6_2_3_13: false
+suse16cis_rule_6_2_3_14: false
+suse16cis_rule_6_2_3_15: false
+suse16cis_rule_6_2_3_16: false
+suse16cis_rule_6_2_3_17: false
+suse16cis_rule_6_2_3_18: false
+suse16cis_rule_6_2_3_19: false
+suse16cis_rule_6_2_3_20: false
+suse16cis_rule_6_2_3_21: false
+suse16cis_rule_6_2_3_22: false
+suse16cis_rule_6_2_3_23: false
+suse16cis_rule_6_2_3_24: false
+suse16cis_rule_6_2_3_25: false
+suse16cis_rule_6_2_3_26: false
+suse16cis_rule_6_2_3_27: false
+suse16cis_rule_6_2_3_28: false
+suse16cis_rule_6_2_3_29: false
+suse16cis_rule_6_2_3_30: false
+suse16cis_rule_6_2_3_31: false
+suse16cis_rule_6_2_3_32: false
+suse16cis_rule_6_2_3_33: false
+suse16cis_rule_6_2_3_34: false
+suse16cis_rule_6_2_3_35: false
+
+# audit log files
+suse16cis_rule_6_2_4_1: false
+suse16cis_rule_6_2_4_2: false
+suse16cis_rule_6_2_4_3: false
+suse16cis_rule_6_2_4_4: false
+suse16cis_rule_6_2_4_5: false
+suse16cis_rule_6_2_4_6: false
+suse16cis_rule_6_2_4_7: false
+suse16cis_rule_6_2_4_8: false
+suse16cis_rule_6_2_4_9: false
+suse16cis_rule_6_2_4_10: false
+
+# audit tools
+suse16cis_rule_6_3_1: false
+suse16cis_rule_6_3_2: false
+suse16cis_rule_6_3_3: false
+
+# interactive user home/dotfiles
+suse16cis_rule_7_2_8: false
+suse16cis_rule_7_2_9: false
+
+# kernel params - may fail in unprivileged containers
+suse16cis_rule_1_5_1: false
+suse16cis_rule_1_5_2: false
+suse16cis_rule_1_5_3: false
+
+## mounts
+# /tmp
+suse16cis_rule_1_1_2_1_1: false
+suse16cis_rule_1_1_2_1_2: false
+suse16cis_rule_1_1_2_1_3: false
+suse16cis_rule_1_1_2_1_4: false
+# /dev/shm
+suse16cis_rule_1_1_2_2_1: false
+suse16cis_rule_1_1_2_2_2: false
+suse16cis_rule_1_1_2_2_3: false
+suse16cis_rule_1_1_2_2_4: false
+# /home
+suse16cis_rule_1_1_2_3_1: false
+suse16cis_rule_1_1_2_3_2: false
+suse16cis_rule_1_1_2_3_3: false
+# /var
+suse16cis_rule_1_1_2_4_1: false
+suse16cis_rule_1_1_2_4_2: false
+suse16cis_rule_1_1_2_4_3: false
+# /var/tmp
+suse16cis_rule_1_1_2_5_1: false
+suse16cis_rule_1_1_2_5_2: false
+suse16cis_rule_1_1_2_5_3: false
+suse16cis_rule_1_1_2_5_4: false
+# /var/log
+suse16cis_rule_1_1_2_6_1: false
+suse16cis_rule_1_1_2_6_2: false
+suse16cis_rule_1_1_2_6_3: false
+suse16cis_rule_1_1_2_6_4: false
+# /var/log/audit
+suse16cis_rule_1_1_2_7_1: false
+suse16cis_rule_1_1_2_7_2: false
+suse16cis_rule_1_1_2_7_3: false
+suse16cis_rule_1_1_2_7_4: false
+
+# firewall - not applicable in containers
+suse16cis_rule_4_1_1: false
+suse16cis_rule_4_1_2: false
+suse16cis_rule_4_1_3: false
+suse16cis_rule_4_1_4: false
+suse16cis_rule_4_1_5: false
+suse16cis_rule_4_1_6: false
+suse16cis_rule_4_1_7: false
+suse16cis_rule_4_1_8: false

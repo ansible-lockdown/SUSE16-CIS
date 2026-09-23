@@ -1,0 +1,244 @@
+---
+
+- name: "6.2.4.x | AUDIT | Find configured auditd logfile location"
+  when:
+    - suse16cis_rule_6_2_4_1 or
+      suse16cis_rule_6_2_4_2 or
+      suse16cis_rule_6_2_4_3 or
+      suse16cis_rule_6_2_4_4
+  tags:
+    - level2-server
+    - level2-workstation
+    - patch
+    - auditd
+    - rule_6.2.4.1
+    - rule_6.2.4.2
+    - rule_6.2.4.3
+    - rule_6.2.4.4
+  ansible.builtin.shell: |
+    set -o pipefail
+    dirname "$(awk -F= '/^\s*log_file\s*/{print $2}' /etc/audit/auditd.conf | xargs)"
+  changed_when: false
+  failed_when: false
+  args:
+    executable: "{{ suse16cis_shell_executable }}"
+  register: discovered_auditd_logfile_dir
+
+- name: "6.2.4.x | AUDIT | Find configured auditd rules location"
+  when:
+    - suse16cis_rule_6_2_4_5 or
+      suse16cis_rule_6_2_4_6 or
+      suse16cis_rule_6_2_4_7
+  tags:
+    - level2-server
+    - level2-workstation
+    - patch
+    - auditd
+    - rule_6.2.4.5
+    - rule_6.2.4.6
+    - rule_6.2.4.7
+  ansible.builtin.find:
+    paths: /etc/audit
+    file_type: file
+    patterns: "*.conf,*.rules"
+    recurse: true
+  changed_when: false
+  failed_when: false
+  register: discovered_auditd_config
+
+- name: "6.2.4.1 | PATCH | Ensure the audit log file directory mode is configured"
+  when: suse16cis_rule_6_2_4_1
+  tags:
+    - level2-server
+    - level2-workstation
+    - patch
+    - auditd
+    - rule_6.2.4.1
+  ansible.builtin.file:
+    path: "{{ discovered_auditd_logfile_dir.stdout | trim }}"
+    state: directory
+    mode: 'g-w,o-rwx'
+
+- name: "6.2.4.2 | PATCH | Ensure audit log files mode is configured"
+  when: suse16cis_rule_6_2_4_2
+  tags:
+    - level2-server
+    - level2-workstation
+    - patch
+    - auditd
+    - rule_6.2.4.2
+  block:
+    - name: "6.2.4.2 | AUDIT | Ensure audit log files mode is configured | find files"
+      ansible.builtin.command: find {{ discovered_auditd_logfile_dir.stdout | trim }} -type f -perm /137
+      changed_when: false
+      failed_when: false
+      register: discovered_audit_logs
+
+    - name: "6.2.4.2 | PATCH | Ensure audit log files mode is configured | adjust file permissions"
+      when:
+        - discovered_audit_logs.stdout_lines is defined
+        - discovered_audit_logs.stdout_lines | length > 0
+      ansible.builtin.file:
+        path: "{{ item }}"
+        mode: 'u-x,g-w,o-rwx'
+      loop: "{{ discovered_audit_logs.stdout_lines }}"
+
+- name: "6.2.4.3 | PATCH | Ensure audit log files owner is configured"
+  when: suse16cis_rule_6_2_4_3
+  tags:
+    - level2-server
+    - level2-workstation
+    - patch
+    - auditd
+    - rule_6.2.4.3
+  block:
+    - name: "6.2.4.3 | AUDIT | Ensure audit log files owner is configured | find files"
+      ansible.builtin.command: find {{ discovered_auditd_logfile_dir.stdout | trim }} -type f ! -owner root
+      changed_when: false
+      failed_when: false
+      register: discovered_audit_logs_owner
+
+    - name: "6.2.4.3 | AUDIT | Ensure audit log files owner is configured | adjust file permissions"
+      when:
+        - discovered_audit_logs_owner.stdout_lines is defined
+        - discovered_audit_logs_owner.stdout_lines | length > 0
+      ansible.builtin.file:
+        path: "{{ item }}"
+        mode: 'u-x,g-w,o-rwx'
+        owner: root
+      loop: "{{ discovered_audit_logs_owner.stdout_lines }}"
+
+- name: "6.2.4.4 | PATCH | Ensure audit log files group owner is configured"
+  when: suse16cis_rule_6_2_4_4
+  tags:
+    - level2-server
+    - level2-workstation
+    - patch
+    - auditd
+    - rule_6.2.4.4
+  block:
+    - name: "6.2.4.4 | PATCH | Ensure audit log files group owner is configured | set log_group in auditd.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/audit/auditd.conf
+        regexp: '^log_group'
+        line: "log_group = {{ suse16cis_auditd_log_group }}"
+      notify: Restart auditd
+
+    - name: "6.2.4.4 | AUDIT | Ensure audit log files group owner is configured | get log files"
+      ansible.builtin.command: find {{ discovered_auditd_logfile_dir.stdout | trim }} -type f ! -group {{ suse16cis_auditd_log_group }}
+      changed_when: false
+      failed_when: false
+      register: discovered_audit_logs_group
+
+    - name: "6.2.4.4 | PATCH | Ensure audit log files group owner is configured | set group"
+      when:
+        - discovered_audit_logs_group.stdout_lines is defined
+        - discovered_audit_logs_group.stdout_lines | length > 0
+      ansible.builtin.file:
+        path: "{{ item }}"
+        mode: 'u-x,g-w,o-rwx'
+        group: "{{ suse16cis_auditd_log_group }}"
+      loop: "{{ discovered_audit_logs_group.stdout_lines }}"
+
+- name: "6.2.4.5 | PATCH | Ensure audit configuration files mode is configured"
+  when: suse16cis_rule_6_2_4_5
+  tags:
+    - level2-server
+    - level2-workstation
+    - patch
+    - auditd
+    - rule_6.2.4.5
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    mode: 'u-x,g-wx,o-rwx'
+  loop: "{{ discovered_auditd_config.files }}"
+
+- name: "6.2.4.6 | PATCH | Ensure audit configuration files owner is configured"
+  when: suse16cis_rule_6_2_4_6
+  tags:
+    - level2-server
+    - level2-workstation
+    - patch
+    - auditd
+    - rule_6.2.4.6
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    owner: root
+  loop: "{{ discovered_auditd_config.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: "6.2.4.7 | PATCH | Ensure audit configuration files group owner is configured"
+  when: suse16cis_rule_6_2_4_7
+  tags:
+    - level2-server
+    - level2-workstation
+    - patch
+    - auditd
+    - rule_6.2.4.7
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    group: root
+  loop: "{{ discovered_auditd_config.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: "6.2.4.8 | PATCH | Ensure audit tools mode is configured"
+  when: suse16cis_rule_6_2_4_8
+  tags:
+    - level2-server
+    - level2-workstation
+    - patch
+    - auditd
+    - rule_6.2.4.8
+  ansible.builtin.file:
+    path: "{{ item }}"
+    mode: 'go-w'
+  loop:
+    - /sbin/auditctl
+    - /sbin/aureport
+    - /sbin/ausearch
+    - /sbin/auditd
+    - /sbin/augenrules
+  loop_control:
+    label: "{{ item }}"
+
+- name: "6.2.4.9 | PATCH | Ensure audit tools owner is configured"
+  when: suse16cis_rule_6_2_4_9
+  tags:
+    - level2-server
+    - level2-workstation
+    - patch
+    - auditd
+    - rule_6.2.4.9
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: root
+  loop:
+    - /sbin/auditctl
+    - /sbin/aureport
+    - /sbin/ausearch
+    - /sbin/auditd
+    - /sbin/augenrules
+  loop_control:
+    label: "{{ item }}"
+
+- name: "6.2.4.10 | PATCH | Ensure audit tools group owner is configured"
+  when: suse16cis_rule_6_2_4_10
+  tags:
+    - level2-server
+    - level2-workstation
+    - patch
+    - auditd
+    - rule_6.2.4.10
+  ansible.builtin.file:
+    path: "{{ item }}"
+    group: root
+  loop:
+    - /sbin/auditctl
+    - /sbin/aureport
+    - /sbin/ausearch
+    - /sbin/auditd
+    - /sbin/augenrules
+  loop_control:
+    label: "{{ item }}"

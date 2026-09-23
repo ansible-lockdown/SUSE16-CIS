@@ -1,0 +1,111 @@
+---
+
+- name: "3.1.1 | PATCH | Ensure IPv6 status is identified | set sysctl"
+  when:
+    - suse16cis_rule_3_1_1
+    - not suse16cis_ipv6_required
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - rule_3.1.1
+    - ipv6
+    - NIST800-53R5_CM-7
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/{{ item }}"
+    owner: root
+    group: root
+    mode: 'g-wx,o-rwx'
+  notify: Flush ipv6 route table
+  loop:
+    - etc/sysctl.d/60-disable_ipv6.conf
+  loop_control:
+    label: "{{ item }}"
+
+- name: 3.1.2 | PATCH | Ensure wireless interfaces are not available
+  when: suse16cis_rule_3_1_2
+  tags:
+    - level1-server
+    - patch
+    - rule_3.1.2
+    - wireless
+    - NIST800-53R5_CM-7
+  block:
+    - name: 3.1.2 | AUDIT | Ensure wireless interfaces are not available | Discover is wireless adapter on system
+      ansible.builtin.shell: |
+        find /sys/class/net/*/ -type d -name wireless
+      changed_when: false
+      failed_when: discovered_wireless_adapters_exist.rc not in [ 0, 1 ]
+      args:
+        executable: "{{ suse16cis_shell_executable }}"
+      register: discovered_wireless_adapters_exist
+
+    - name: 3.1.2 | AUDIT | Ensure wireless interfaces are not available | If wireless adapter present capture module
+      when: discovered_wireless_adapters_exist.rc == 0
+      ansible.builtin.shell: |
+        set -o pipefail
+        find /sys/class/net/*/ -type d -name wireless -print0 |
+          xargs -0 -r -n1 dirname |
+          while read -r driverdir; do
+            basename "$(readlink -f "$driverdir"/device/driver/module)"
+          done | sort -u
+      changed_when: false
+      failed_when: discovered_wireless_modules.rc not in [ 0, 1 ]
+      args:
+        executable: "{{ suse16cis_shell_executable }}"
+      register: discovered_wireless_modules
+
+    - name: 3.1.2 | PATCH | Ensure wireless interfaces are not available
+      when:
+        - discovered_wireless_modules.stdout_lines is defined
+        - discovered_wireless_modules.stdout_lines | length > 0
+      block:
+        - name: 3.1.2 | PATCH | Ensure wireless interfaces are not available | Create modprobe.d file
+          ansible.builtin.lineinfile:
+            path: /etc/modprobe.d/{{ item }}.conf
+            regexp: '^(#)?install {{ item }}(\s|$)'
+            line: install {{ item }} /bin/false
+            create: true
+            mode: 'go-wx'
+          loop: "{{ discovered_wireless_modules.stdout_lines }}"
+
+        - name: 3.1.2 | PATCH | Ensure wireless interfaces are not available | blacklist
+          ansible.builtin.lineinfile:
+            path: /etc/modprobe.d/blacklist.conf
+            regexp: "^(#)?blacklist {{ item }}(\\s|$)"
+            line: "blacklist {{ item }}"
+            create: true
+            mode: 'go-rwx'
+          loop: "{{ discovered_wireless_modules.stdout_lines }}"
+          loop_control:
+            label: "{{ item }}"
+
+- name: "3.1.3 | PATCH | Ensure bluetooth services are not in use"
+  when: suse16cis_rule_3_1_3
+  tags:
+    - level1-server
+    - level2-workstation
+    - patch
+    - bluetooth
+    - rule_3.1.3
+    - NIST800-53R5_CM-7
+  block:
+    - name: "3.1.3 | PATCH | Ensure bluetooth services are not in use | pkg"
+      when:
+        - not suse16cis_bluetooth_service
+        - not suse16cis_bluetooth_mask
+      ansible.builtin.package:
+        name: bluez
+        state: absent
+
+    - name: "3.1.3 | PATCH | Ensure bluetooth services are not in use | mask"
+      when:
+        - not suse16cis_bluetooth_service
+        - suse16cis_bluetooth_mask
+      notify: Reload systemctl
+      ansible.builtin.systemd:
+        name: bluetooth.service
+        enabled: false
+        state: stopped
+        masked: true

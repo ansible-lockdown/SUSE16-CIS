@@ -1,0 +1,127 @@
+---
+
+- name: "2.4.3.1 | PATCH | Ensure access to systemd timer unit files is configured"
+  when: suse16cis_rule_2_4_3_1
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - rule_2.4.3.1
+    - systemd
+    - NIST800-53R5_CM-6
+    - NIST800-53R5_CM-5
+    - NIST800-53R5_AC-6
+  block:
+    - name: "2.4.3.1 | PATCH | Ensure access to systemd timer unit files is configured | Find timer files"
+      ansible.builtin.find:
+        paths:
+          - /run/systemd/system
+          - /etc/systemd/system
+          - /usr/lib/systemd/system
+        patterns: "*.timer"
+        file_type: file
+        recurse: true
+      register: discovered_timer_files
+
+    - name: "2.4.3.1 | PATCH | Ensure access to systemd timer unit files is configured | Set permissions"
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      loop: "{{ discovered_timer_files.files }}"
+      loop_control:
+        label: "{{ item }}"
+
+- name: "2.4.3.2 | PATCH | Ensure access to systemd service unit files is configured"
+  when: suse16cis_rule_2_4_3_2
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - rule_2.4.3.2
+    - systemd
+    - NIST800-53R5_CM-6
+    - NIST800-53R5_AC-6
+  block:
+    - name: "2.4.3.2 | PATCH | Ensure access to systemd service unit files is configured | Find service files"
+      ansible.builtin.find:
+        paths:
+          - /run/systemd/system
+          - /etc/systemd/system
+          - /usr/lib/systemd/system
+        patterns: "*.service"
+        file_type: file
+        recurse: true
+      register: discovered_service_files
+
+    - name: "2.4.3.2 | PATCH | Ensure access to systemd service unit files is configured | Set permissions"
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      loop: "{{ discovered_service_files.files }}"
+      loop_control:
+        label: "{{ item }}"
+
+- name: "2.4.3.3 | PATCH | Ensure access to systemd timer drop in directories is configured"
+  when: suse16cis_rule_2_4_3_3
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - rule_2.4.3.3
+    - systemd
+    - NIST800-53R5_AC-6
+    - NIST800-53R5_CM-6
+  block:
+    - name: "2.4.3.3 | PATCH | Ensure access to systemd timer drop in directories is configured | Find directories"
+      ansible.builtin.find:
+        paths:
+          - /run/systemd/system
+          - /etc/systemd/system
+          - /usr/lib/systemd/system
+        file_type: directory
+        recurse: true
+      register: discovered_systemd_dirs
+
+    - name: "2.4.3.3 | PATCH | Ensure access to systemd timer drop in directories is configured | Set permissions"
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        owner: root
+        group: root
+        mode: 'g-w,o-rwx'
+      loop: "{{ discovered_systemd_dirs.files }}"
+      loop_control:
+        label: "{{ item }}"
+
+- name: "2.4.3.4 | PATCH | Ensure systemd user timers disable-linger is configured"
+  when: suse16cis_rule_2_4_3_4
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - rule_2.4.3.4
+    - systemd
+    - NIST800-53R5_AC-6
+    - NIST800-53R5_CM-7
+  block:
+    - name: "2.4.3.4 | PATCH | Ensure systemd user timers disable-linger is configured | Get non-root users with linger enabled"
+      ansible.builtin.shell: |
+        set -o pipefail
+        loginctl list-users --no-legend | awk '$1 != 0 {print $2}' | \
+        xargs -r -I{} sh -c 'loginctl show-user {} --property=Linger | grep -q "Linger=yes" && echo {} || true'
+      changed_when: false
+      failed_when: false
+      args:
+        executable: "{{ suse16cis_shell_executable }}"
+      register: discovered_linger_users
+
+    - name: "2.4.3.4 | PATCH | Ensure systemd user timers disable-linger is configured | Disable linger"
+      when: discovered_linger_users.stdout_lines | length > 0
+      ansible.builtin.command: loginctl disable-linger {{ item }}
+      changed_when: true
+      loop: "{{ discovered_linger_users.stdout_lines }}"
+      loop_control:
+        label: "{{ item }}"

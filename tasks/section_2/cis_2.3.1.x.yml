@@ -1,0 +1,137 @@
+---
+
+- name: "2.3.1.1 | PATCH | Ensure chrony is configured"
+  when: suse16cis_rule_2_3_1_1
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - rule_2.3.1.1
+    - time
+    - chrony
+    - systemd-timesyncd
+    - NIST800-53R5_AU-3
+    - NIST800-53R5_AU-12
+  block:
+    - name: "2.3.1.1 | PATCH | Ensure chrony is configured | Pkg installed"
+      when: suse16cis_time_sync_tool == 'chronyd'
+      ansible.builtin.package:
+        name: chrony
+        state: present
+
+    - name: "2.3.1.1 | PATCH | Ensure chrony is configured | other pkgs removed"
+      when: "item not in suse16cis_time_sync_tool"
+      ansible.builtin.package:
+        name: "{{ item }}"
+        state: absent
+      loop:
+        - chrony
+        - systemd-timesyncd
+
+    - name: "2.3.1.1 | PATCH | Ensure chrony is configured | Stop and disable service"
+      when: "item.pkg not in suse16cis_time_sync_tool"
+      ansible.builtin.systemd:
+        name: "{{ item.unit }}"
+        masked: true
+        daemon_reload: true
+      loop:
+        - { pkg: 'chrony', unit: 'chronyd' }
+        - { pkg: 'systemd-timesyncd', unit: 'systemd-timesyncd' }
+      loop_control:
+        label: "{{ item.unit }}"
+
+    - name: "2.3.1.1 | PATCH | Ensure chrony is configured | Create chrony.d directory"
+      when: suse16cis_time_sync_tool == 'chronyd'
+      ansible.builtin.file:
+        path: /etc/chrony.d
+        state: directory
+        owner: root
+        group: root
+        mode: 'go-w'
+
+    - name: "2.3.1.1 | PATCH | Ensure chrony is configured | Configure time pool"
+      when:
+        - suse16cis_time_sync_tool == 'chronyd'
+        - suse16cis_time_pool_name | length > 0
+      ansible.builtin.template:
+        src: etc/chrony.d/pool.conf.j2
+        dest: /etc/chrony.d/pool.conf
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      notify: Restart chronyd
+
+    - name: "2.3.1.1 | PATCH | Ensure chrony is configured | Configure time servers"
+      when:
+        - suse16cis_time_sync_tool == 'chronyd'
+        - suse16cis_time_servers | length > 0
+      ansible.builtin.template:
+        src: etc/chrony.d/server.conf.j2
+        dest: /etc/chrony.d/server.conf
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      notify: Restart chronyd
+
+    - name: "2.3.1.1 | PATCH | Ensure chrony is configured | Include chrony.d from chrony.conf"
+      when: suse16cis_time_sync_tool == 'chronyd'
+      ansible.builtin.lineinfile:
+        path: /etc/chrony.conf
+        regexp: '^\s*(include|confdir)\s+/etc/chrony\.d'
+        line: 'confdir /etc/chrony.d'
+        create: true
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      notify: Restart chronyd
+
+    - name: "2.3.1.1 | PATCH | Ensure chrony is configured | Configure timesyncd"
+      when: suse16cis_time_sync_tool == 'systemd-timesyncd'
+      ansible.builtin.template:
+        src: etc/systemd/timesyncd.conf.d/60-timesyncd.conf.j2
+        dest: /etc/systemd/timesyncd.conf.d/60-timesyncd.conf
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+
+    - name: "2.3.1.1 | PATCH | Ensure chrony is configured | Run chronyd as the chrony user"
+      when: suse16cis_time_sync_tool == 'chronyd'
+      ansible.builtin.lineinfile:
+        path: /etc/sysconfig/chronyd
+        regexp: '^\s*OPTIONS\s*='
+        line: 'OPTIONS="-u chrony"'
+        create: true
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      notify: Restart chronyd
+
+- name: "2.3.1.2 | PATCH | Ensure chrony is enabled and running"
+  when: suse16cis_rule_2_3_1_2
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - rule_2.3.1.2
+    - time
+    - chrony
+    - systemd-timesyncd
+    - NIST800-53R5_AU-8
+  block:
+    - name: "2.3.1.2 | PATCH | Ensure chrony is enabled and running | chronyd"
+      when: suse16cis_time_sync_tool == 'chronyd'
+      ansible.builtin.systemd:
+        name: chronyd
+        masked: false
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    - name: "2.3.1.2 | PATCH | Ensure chrony is enabled and running | systemd-timesyncd"
+      when: suse16cis_time_sync_tool == 'systemd-timesyncd'
+      ansible.builtin.systemd:
+        name: systemd-timesyncd
+        masked: false
+        enabled: true
+        state: started
+        daemon_reload: true

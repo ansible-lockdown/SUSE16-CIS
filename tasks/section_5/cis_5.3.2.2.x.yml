@@ -1,0 +1,216 @@
+---
+
+- name: "5.3.3.2.x | PATCH | pwqaulity.conf.d directory exists"
+  when:
+    - suse16cis_rule_5_3_2_2_1 or
+      suse16cis_rule_5_3_2_2_2 or
+      suse16cis_rule_5_3_2_2_3 or
+      suse16cis_rule_5_3_2_2_4 or
+      suse16cis_rule_5_3_2_2_5 or
+      suse16cis_rule_5_3_2_2_6 or
+      suse16cis_rule_5_3_2_2_7
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - rule_5.3.2.2.1
+    - rule_5.3.2.2.2
+    - rule_5.3.2.2.3
+    - rule_5.3.2.2.4
+    - rule_5.3.2.2.5
+    - rule_5.3.2.2.6
+    - rule_5.3.2.2.7
+    - pam
+    - NIST800-53R5_IA-5
+  ansible.builtin.file:
+    path: /etc/security/pwquality.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: 'go-w'
+
+- name: "5.3.2.2.1 | PATCH | Ensure password dictionary check is enabled"
+  when: suse16cis_rule_5_3_2_2_1
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - rule_5.3.2.2.1
+    - pam
+    - NIST800-53R5_IA-5
+  block:
+    - name: "5.3.2.2.1 | PATCH | Ensure password dictionary check is enabled | Remove dictcheck settings from conf files"
+      when: item != suse16cis_passwd_dictcheck_file
+      ansible.builtin.replace:
+        path: "{{ item.path }}"
+        regexp: 'dictcheck\s*=\s*0\b'
+        replace: ''
+      loop: "{{ prelim_pwquality_files.files }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: "5.3.2.2.1 | PATCH | Ensure password dictionary check is enabled | Set dictcheck"
+      ansible.builtin.template:
+        src: "{{ suse16cis_passwd_dictcheck_file }}.j2"
+        dest: "/{{ suse16cis_passwd_dictcheck_file }}"
+        owner: root
+        group: root
+        mode: 'go-rwx'
+
+- name: "5.3.2.2.2 | PATCH | Ensure password number of changed characters is configured"
+  when: suse16cis_rule_5_3_2_2_2
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - rule_5.3.2.2.2
+    - pam
+    - NIST800-53R5_IA-5
+  block:
+    - name: "5.3.2.2.2 | PATCH | Ensure password number of changed characters is configured | Remove difok from conf files except expected file"
+      when:
+        - not suse16cis_use_pam_config
+        - item != suse16cis_passwd_difok_file
+      ansible.builtin.replace:
+        path: "{{ item.path }}"
+        regexp: 'difok\s*=\s*\d+\b'
+        replace: ''
+      loop: "{{ prelim_pwquality_files.files }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: "5.3.2.2.2 | PATCH | Ensure password number of changed characters is configured | Ensure difok file exists | not pam-config"
+      ansible.builtin.template:
+        src: "{{ suse16cis_passwd_difok_file }}.j2"
+        dest: "/{{ suse16cis_passwd_difok_file }}"
+        owner: root
+        group: root
+        mode: 'go-rwx'
+
+- name: "5.3.2.2.3 | PATCH | Ensure password length is configured"
+  when: suse16cis_rule_5_3_2_2_3
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - rule_5.3.2.2.3
+    - pam
+    - NIST800-53R5_IA-5
+  block:
+    - name: "5.3.2.2.3 | PATCH | Ensure password length is configured | Remove minlen from conf files except expected file"
+      when: item != suse16cis_passwd_minlen_file
+      ansible.builtin.replace:
+        path: "{{ item.path }}"
+        regexp: 'minlen\s*=\s*\d+\b'
+        replace: ''
+      loop: "{{ prelim_pwquality_files.files }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: "5.3.2.2.3 | PATCH | Ensure password length is configured | Ensure minlen file exists | not pam-config"
+      ansible.builtin.template:
+        src: "{{ suse16cis_passwd_minlen_file }}.j2"
+        dest: "/{{ suse16cis_passwd_minlen_file }}"
+        owner: root
+        group: root
+        mode: 'go-rwx'
+
+- name: "5.3.2.2.4 | PATCH | Ensure password complexity is configured"
+  when: suse16cis_rule_5_3_2_2_4
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - rule_5.3.2.2.4
+    - pam
+    - NIST800-53R5_IA-5
+  block:
+    - name: "5.3.2.2.4 | PATCH | Ensure password complexity is configured | Remove pwd complex settings from conf files except expected file"
+      when: item != suse16cis_passwd_complex_file
+      ansible.builtin.replace:
+        path: "{{ item.path }}"
+        regexp: '(minclass|[dulo]credit)\s*=\s*(-\d|\d+)\b'
+        replace: ''
+      loop: "{{ prelim_pwquality_files.files }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: "5.3.2.2.4 | PATCH | Ensure password complexity is configured | Ensure complexity file exists | not pam-config"
+      ansible.builtin.template:
+        src: "{{ suse16cis_passwd_complex_file }}.j2"
+        dest: "/{{ suse16cis_passwd_complex_file }}"
+        owner: root
+        group: root
+        mode: 'go-rwx'
+
+- name: "5.3.2.2.5 | PATCH | Ensure password same consecutive characters is configured"
+  when: suse16cis_rule_5_3_2_2_5
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - rule_5.3.2.2.5
+    - pam
+    - NIST800-53R5_IA-5
+  block:
+    - name: "5.3.2.2.5 | PATCH | Ensure password same consecutive characters is configured | Remove maxrepeat settings from conf files except expected file"
+      when: item != suse16cis_passwd_maxrepeat_file
+      ansible.builtin.replace:
+        path: "{{ item.path }}"
+        regexp: 'maxrepeat\s*=\s*\d+\b'
+        replace: ''
+      loop: "{{ prelim_pwquality_files.files }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: "5.3.2.2.5 | PATCH | Ensure password same consecutive characters is configured | Ensure maxrepeat file exists"
+      ansible.builtin.template:
+        src: "{{ suse16cis_passwd_maxrepeat_file }}.j2"
+        dest: "/{{ suse16cis_passwd_maxrepeat_file }}"
+        owner: root
+        group: root
+        mode: 'go-rwx'
+
+- name: "5.3.2.2.6 | PATCH | Ensure password maximum sequential characters is configured"
+  when: suse16cis_rule_5_3_2_2_6
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - rule_5.3.2.2.6
+    - pam
+    - NIST800-53R5_IA-5
+  block:
+    - name: "5.3.2.2.6 | PATCH | Ensure password maximum sequential characters is configured | Remove maxsequence settings from conf files except expected file"
+      when: item != suse16cis_passwd_maxsequence_file
+      ansible.builtin.replace:
+        path: "{{ item.path }}"
+        regexp: 'maxsequence\s*=\s*\d+\b'
+        replace: ''
+      loop: "{{ prelim_pwquality_files.files }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: "5.3.2.2.6 | PATCH | Ensure password maximum sequential characters is configured | Ensure maxsequence file exists"
+      ansible.builtin.template:
+        src: "{{ suse16cis_passwd_maxsequence_file }}.j2"
+        dest: "/{{ suse16cis_passwd_maxsequence_file }}"
+        owner: root
+        group: root
+        mode: 'go-rwx'
+
+- name: "5.3.2.2.7 | PATCH | Ensure password quality is enforced for the root user"
+  when: suse16cis_rule_5_3_2_2_7
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - rule_5.3.2.2.7
+    - pam
+    - NIST800-53R5_IA-5
+  ansible.builtin.template:
+    src: "{{ suse16cis_passwd_quality_enforce_for_root_file }}.j2"
+    dest: "/{{ suse16cis_passwd_quality_enforce_for_root_file }}"
+    owner: root
+    group: root
+    mode: 'go-rwx'

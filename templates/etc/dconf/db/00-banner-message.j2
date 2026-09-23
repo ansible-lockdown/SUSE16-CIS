@@ -1,0 +1,8 @@
+{{ file_managed_by_ansible }}
+
+# Specify the dconf path
+[org/gnome/login-screen]
+
+# Enable the login screen banner and set its text
+banner-message-enable=true
+banner-message-text='{{ suse16cis_warning_banner | replace("\n", " ") | trim }}'

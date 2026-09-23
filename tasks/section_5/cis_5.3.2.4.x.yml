@@ -1,0 +1,135 @@
+---
+
+- name: "5.3.2.4.1 | PATCH | Ensure pam_unix does not include nullok"
+  when:
+    - suse16cis_rule_5_3_2_4_1
+    - suse16cis_disruption_high
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - rule_5.3.2.4.1
+    - pam
+    - NIST800-53R5_NA
+  block:
+    - name: "5.3.2.4.1 | AUDIT | Ensure pam_unix does not include nullok | capture state"
+      when: suse16cis_use_pam_config
+      ansible.builtin.command: pam-config --query --unix
+      changed_when: false
+      failed_when: discovered_pam_nullok.rc not in [ 0, 1 ]
+      register: discovered_pam_nullok
+
+    - name: "5.3.2.4.1 | PATCH | Ensure pam_unix does not include nullok | Ensure nullok removed"
+      when:
+        - suse16cis_use_pam_config
+        - discovered_pam_nullok.stdout is defined
+        - "'nullok' in discovered_pam_nullok.stdout"
+      ansible.builtin.command: pam-config -d --unix-nullok
+      changed_when: true
+      notify: Update pam-config
+
+- name: "5.3.2.4.2 | PATCH | Ensure pam_unix does not include remember"
+  when:
+    - suse16cis_rule_5_3_2_4_2
+    - suse16cis_disruption_high
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - pam
+    - rule_5.3.2.4.2
+    - NIST800-53R5_NA
+  block:
+    - name: "5.3.2.4.2 | AUDIT | Ensure pam_unix does not include remember | capture state"
+      when: not suse16cis_use_pam_config
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -PH -- '^\s*^\s*[^#\n\r]+\s+pam_unix\.so\b.*remember' /etc/pam.d/common-{password,password-pc,password.pam-config-backup}
+      changed_when: false
+      failed_when: discovered_pam_remember.rc not in [ 0, 1 ]
+      args:
+        executable: "{{ suse16cis_shell_executable }}"
+      register: discovered_pam_remember
+
+    - name: "5.3.2.4.2 | PATCH | Ensure pam_unix does not include remember | Ensure remember removed"
+      when:
+        - not suse16cis_use_pam_config
+        - discovered_pam_remember.stdout_lines is defined
+        - discovered_pam_remember.stdout_lines | length > 0
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: remember=\d+
+        replace: ''
+      loop: "{{ discovered_pam_remember.stdout_lines }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: "5.3.2.4.2 | PATCH | Ensure pam_unix does not include remember | pam-config remove remember value"
+      when:
+        - suse16cis_use_pam_config
+        - discovered_pam_remember.stdout_lines is defined
+        - discovered_pam_remember.stdout_lines | length > 0
+      ansible.builtin.command: pam-config -d --unix-remember
+      changed_when: true
+      notify: Update pam-config
+
+- name: "5.3.2.4.3 | PATCH | Ensure pam_unix includes a strong password hashing algorithm"
+  when:
+    - suse16cis_rule_5_3_2_4_3
+    - suse16cis_disruption_high
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - pam
+    - rule_5.3.2.4.3
+    - NIST800-53R5_IA-5
+  block:
+    - name: "5.3.2.4.3 | AUDIT | Ensure pam_unix includes a strong password hashing algorithm | capture state"
+      when: suse16cis_use_pam_config
+      ansible.builtin.command: "pam-config --query --unix --unix-{{ suse16cis_passwd_hash_algo }}"
+      changed_when: false
+      failed_when: discovered_pam_pwhash.rc not in [ 0, 1 ]
+      register: discovered_pam_pwhash
+
+    - name: "5.3.2.4.3 | PATCH | Ensure pam_unix includes a strong password hashing algorithm | Ensure hash algorithm set"
+      when:
+        - suse16cis_use_pam_config
+        - discovered_pam_pwhash.stdout is defined
+        - suse16cis_passwd_hash_algo not in discovered_pam_pwhash.stdout
+      ansible.builtin.command: pam-config -a --unix --unix-{{ suse16cis_passwd_hash_algo }}
+      changed_when: true
+
+- name: "5.3.2.4.4 | PATCH | Ensure pam_unix includes use_authtok"
+  when: suse16cis_rule_5_3_2_4_4
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - pam
+    - rule_5.3.2.4.4
+    - NIST800-53R5_IA-5
+  block:
+    - name: "5.3.2.4.4 | PATCH | Ensure pam_unix includes use_authtok | capture state"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -PH -- '^\s*password\s+([^#\n\r]+)\s+pam_unix\.so\s+([^#\n\r]+\s+)?use_authtok\b' /etc/pam.d/common-{password,password-pc}
+      changed_when: false
+      failed_when: discovered_pam_authtok.rc not in [ 0, 1 ]
+      args:
+        executable: "{{ suse16cis_shell_executable }}"
+      register: discovered_pam_authtok
+
+    - name: "5.3.2.4.4 | AUDIT | Ensure pam_unix includes use_authtok | configure pam_files if not set"
+      when:
+        - discovered_pam_authtok.stdout is not defined
+        - discovered_pam_authtok.stdout | length > 0
+      ansible.builtin.lineinfile:
+        path: "{{ item.path }}"
+        regexp: (\s*password\s+required\s+pam_unix\.so.*)\buse_authtok\b(.*)
+        line: \1\2 use_authtok
+        backrefs: true
+      loop: "{{ discovered_pam_authtok.stdout_lines }}"
+      loop_control:
+        label: "{{ item }}"
+      notify: Update pam-config

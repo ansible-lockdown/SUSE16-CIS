@@ -1,0 +1,164 @@
+---
+# vars file for SUSE16-CIS
+
+# Note that some of these variables are used in multiple controls and may be used across multiple sections.
+# These are included here for ease of maintenance and to avoid duplication across multiple sections.
+# If a variable is only used in a single control it will be included in the tasks file for that control.
+
+# Ability to change the default shell
+# Note this can change how some of the ansible.builtin.shell tasks work and may require adjustments to args.executable for those tasks
+# Used mainly for overriding to use a more POSIX compliant shell such as dash or ash when running in a container environment
+suse16cis_shell_executable: /bin/bash
+
+# Minimal Supported version for ansible-lockdown community roles
+min_ansible_version: 2.16.1
+
+# Set a default variable for if running in a container environment. This can be overridden by setting to true in the inventory or playbook dynamic discovery.
+system_is_container: false
+
+# Default setting on whether to update the audit template or not. This is used in multiple controls and can be overridden if needed.
+update_audit_template: false
+
+# Default setting so changes do not require a reboot unless value is dynamically changed.
+change_requires_reboot: false
+
+# Default allowed crypto policies in accordance with the CIS Benchmark. This is used in multiple controls and can be overridden if needed.
+suse16cis_allowed_crypto_policies:
+  - 'DEFAULT'
+  - 'FUTURE'
+  - 'FIPS'
+
+# Following is left blank for ability to build string
+suse16cis_crypto_policy_module: ''
+
+# Do not adjust these are recognized as part of the CIS benchmark and used during testing
+suse16cis_allowed_crypto_policies_modules:
+  # Recognized by CIS as possible extra options
+  - 'OSPP'
+  - 'AD-SUPPORT'
+  - 'AD-SUPPORT-LEGACY'
+  # The following are already included in 1.6.x controls
+
+# Used to control warning summary
+warn_control_list: ""
+warn_count: 0
+
+# Note is using SLES these values differ and will load the SLES variables file
+os_gpg_key_pubkey_name: gpg-pubkey-39db7c82-5f68629b
+os_gpg_key_pubkey_content: "SuSE Package Signing Key <build@suse.de> 39db7c82"
+
+# Default settings for SELinux to allow override
+
+# Services and packages
+avahi_pkgs:
+  - avahi
+avahi_services:
+  - avahi-daemon.socket
+  - avahi-daemon.service
+
+dhcp_pkgs:
+  - kea
+dhcp_services:
+  - kea-dhcp-ddns.service
+  - kea-dhcp4.service
+  - kea-dhcp6.service
+
+dns_pkgs:
+  - bind
+dns_services:
+  - named.service
+
+dnsmasq_pkgs:
+  - dnsmasq
+dnsmasq_services:
+  - dnsmasq.service
+
+samba_pkgs:
+  - samba
+samba_services:
+  - smb.service
+
+ldap_pkgs:
+  - openldap2_6
+ldap_services:
+  - slapd.service
+
+ftp_pkgs:
+  - vsftpd
+ftp_services:
+  - vsftpd.service
+
+messaging_pkgs:
+  - dovecot
+  - cyrus-imapd
+messaging_services:
+  - dovecot.service
+  - dovecot.socket
+  - cyrus-imapd.service
+
+nfs_pkgs:
+  - nfs-kernel-server
+nfs_services:
+  - nfs-server.service
+
+print_pkgs:
+  - cups
+print_services:
+  - cups.service
+  - cups.socket
+
+rpcbind_pkgs:
+  - rpcbind
+rpcbind_services:
+  - rpcbind.service
+  - rpcbind.socket
+
+rsync_pkgs:
+  - rsync
+rsync_services:
+  - rsyncd.socket
+  - rsyncd.service
+
+snmp_pkgs:
+  - net-snmp
+snmp_services:
+  - snmpd.service
+
+telnet_pkgs:
+  - telnet-server
+telnet_services:
+  - telnet.socket
+
+tftp_pkgs:
+  - tftp-server
+tftp_services:
+  - tftp.socket
+  - tftp.service
+
+web_proxy_pkgs:
+  - squid
+web_proxy_services:
+  - squid.service
+
+web_server_pkgs:
+  - apache2
+web_server_services:
+  - apache2.service
+
+xinetd_pkgs:
+  - xinetd
+xinetd_services:
+  - xinetd.service
+
+aide_packages:
+  - aide
+
+# Aide initiate command for new DB creation
+aide_initiate_command: /usr/bin/aide --init
+
+company_title: 'MindPoint Group - A Quantum Sky Company'
+
+file_managed_by_ansible: |-
+  # File managed by ansible as part of {{ benchmark }} benchmark
+  # As part of Ansible-lockdown
+  # Provided by {{ company_title }}

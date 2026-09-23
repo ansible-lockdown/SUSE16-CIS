@@ -1,0 +1,668 @@
+---
+
+- name: "5.1.1 | PATCH | Ensure access to sshd_config files is configured"
+  when: suse16cis_rule_5_1_1
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - ssh
+    - permissions
+    - rule_5.1.1
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  block:
+    - name: "5.1.1 | AUDIT | Ensure access to sshd_config files is configured | find all config files"
+      ansible.builtin.find:
+        paths:
+          - /etc/ssh/sshd_config.d
+          - /usr/etc/ssh/sshd_config.d
+        patterns: '*.conf'
+      register: discovered_sshd_config
+
+    - name: "5.1.1 | PATCH | Ensure access to sshd_config files is configured | Set permissions on sshd_config"
+      when: item.path is defined
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        owner: root
+        group: root
+        mode: 'u-x,go-rwx'
+      failed_when: discovered_sshd_config_permissions.state not in '[ file, absent ]'
+      register: discovered_sshd_config_permissions
+      loop: "{{ discovered_sshd_config.files + [{'path': '/etc/ssh/sshd_config'}, {'path': '/usr/etc/ssh/sshd_config'}] }}"
+
+- name: "5.1.2 | PATCH | Ensure access to SSH private host key files is configured"
+  when: suse16cis_rule_5_1_2
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - ssh
+    - permissions
+    - rule_5.1.2
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  block:
+    - name: "5.1.2 | AUDIT | Ensure access to SSH private host key files is configured | Find the SSH private host keys"
+      ansible.builtin.find:
+        paths: /etc/ssh
+        patterns: 'ssh_host_*_key'
+        recurse: true
+        file_type: any
+      register: discovered_ssh_private_host_key
+
+    - name: "5.1.2 | PATCH | Ensure access to SSH private host key files is configured | Set permissions on SSH private host keys"
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        owner: root
+        group: root
+        mode: 'u-x,go-rwx'
+      loop: "{{ discovered_ssh_private_host_key.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+- name: "5.1.3 | PATCH | Ensure access to SSH public host key files is configured"
+  when: suse16cis_rule_5_1_3
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - ssh
+    - rule_5.1.3
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  block:
+    - name: "5.1.3 | AUDIT | Ensure access to SSH public host key files is configured | Find the SSH public host keys"
+      ansible.builtin.find:
+        paths: /etc/ssh
+        patterns: 'ssh_host_*_key.pub'
+        recurse: true
+        file_type: any
+      register: discovered_ssh_public_host_key
+
+    - name: "5.1.3 | PATCH | Ensure access to SSH public host key files is configured | Set permissions on SSH public host keys"
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      loop: "{{ discovered_ssh_public_host_key.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+- name: "5.1.4 | PATCH | Ensure sshd access is configured"
+  when: suse16cis_rule_5_1_4
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - ssh
+    - rule_5.1.4
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  block:
+    - name: "5.1.4 | PATCH | Ensure sshd access is configured | Add line to sshd_config for allowusers"
+      when: "suse16cis_sshd_allow_users | length > 0"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config.d/allow_users.conf
+        regexp: "^AllowUsers"
+        line: "AllowUsers {{ suse16cis_sshd_allow_users }}"
+        create: true
+        owner: root
+        group: root
+        mode: 'u-x,go-rwx'
+        validate: sshd -t -f %s
+      notify: Restart sshd
+
+    - name: "5.1.4 | PATCH | Ensure sshd access is configured | Add line to sshd_config for allowgroups"
+      when: "suse16cis_sshd_allow_groups | length > 0"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config.d/allow_groups.conf
+        regexp: "^AllowGroups"
+        line: "AllowGroups {{ suse16cis_sshd_allow_groups }}"
+        create: true
+        owner: root
+        group: root
+        mode: 'u-x,go-rwx'
+        validate: sshd -t -f %s
+      notify: Restart sshd
+
+    - name: "5.1.4 | PATCH | Ensure sshd access is configured | Add line to sshd_config for denyusers"
+      when: "suse16cis_sshd_deny_users | length > 0"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config.d/deny_users.conf
+        regexp: "^DenyUsers"
+        line: "DenyUsers {{ suse16cis_sshd_deny_users }}"
+        create: true
+        owner: root
+        group: root
+        mode: 'u-x,go-rwx'
+        validate: sshd -t -f %s
+      notify: Restart sshd
+
+    - name: "5.1.4 | PATCH | Ensure sshd access is configured | Add line to sshd_config for denygroups"
+      when: "suse16cis_sshd_deny_groups | length > 0"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config.d/deny_groups.conf
+        regexp: "^DenyGroups"
+        line: "DenyGroups {{ suse16cis_sshd_deny_groups }}"
+        create: true
+        owner: root
+        group: root
+        mode: 'u-x,go-rwx'
+        validate: sshd -t -f %s
+      notify: Restart sshd
+
+- name: "5.1.5 | PATCH | Ensure sshd Banner is configured"
+  when: suse16cis_rule_5_1_5
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - ssh
+    - rule_5.1.5
+    - NIST800-53R5_CM-1
+    - NIST800-53R5_CM-2
+    - NIST800-53R5_CM-6
+    - NIST800-53R5_CM-7
+    - NIST800-53R5_IA-5
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config.d/banner.conf
+    regexp: '^Banner'
+    line: 'Banner /etc/issue.net'
+    create: true
+    owner: root
+    group: root
+    mode: 'u-x,go-rwx'
+    validate: sshd -t -f %s
+  notify: Restart sshd
+
+- name: "5.1.6 | PATCH | Ensure sshd Ciphers are configured"
+  when:
+    - suse16cis_rule_5_1_6
+    - "'NO-SSHWEAKCIPHERS' not in suse16cis_crypto_policy_module"
+  tags:
+    - level1-server
+    - level1-workstation
+    - automated
+    - patch
+    - crypto
+    - rule_5.1.6
+    - NIST800-53R5_SC-8
+  block:
+    - name: "5.1.6 | PATCH | Ensure sshd Ciphers are configured | Add submodule exclusion"
+      ansible.builtin.template:
+        src: etc/crypto-policies/policies/modules/NO-SSHWEAKCIPHERS.pmod.j2
+        dest: /etc/crypto-policies/policies/modules/NO-SSHWEAKCIPHERS.pmod
+        owner: root
+        group: root
+        mode: 'go-rwx'
+      notify:
+        - Update Crypto Policy
+        - Set Crypto Policy
+
+    - name: "5.1.6 | PATCH | Ensure sshd Ciphers are configured | submodule to crypto policy modules"
+      ansible.builtin.set_fact:
+        suse16cis_crypto_policy_module: "{{ suse16cis_crypto_policy_module + ':NO-SSHWEAKCIPHERS' }}"
+
+- name: "5.1.7 | PATCH | Ensure sshd ClientAliveInterval and ClientAliveCountMax are configured"
+  when: suse16cis_rule_5_1_7
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - ssh
+    - rule_5.1.7
+    - NIST800-53R5_CM-1
+    - NIST800-53R5_CM-2
+    - NIST800-53R5_CM-6
+    - NIST800-53R5_CM-7
+    - NIST800-53R5_IA-5
+  block:
+    - name: "5.1.7 | PATCH | Ensure sshd ClientAliveInterval and ClientAliveCountMax are configured | Add line in sshd_config for ClientAliveInterval"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config.d/client_alive.conf
+        regexp: '^ClientAliveInterval'
+        line: "ClientAliveInterval {{ suse16cis_sshd_client_alive_interval }}"
+        create: true
+        owner: root
+        group: root
+        mode: 'u-x,go-rwx'
+        validate: sshd -t -f %s
+      notify: Restart sshd
+
+    - name: "5.1.7 | PATCH | Ensure sshd ClientAliveInterval and ClientAliveCountMax are configured | Ensure SSH ClientAliveCountMax set to <= 3"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config.d/client_alive.conf
+        regexp: '^ClientAliveCountMax'
+        line: "ClientAliveCountMax {{ suse16cis_sshd_client_alive_count_max }}"
+        validate: sshd -t -f %s
+      notify: Restart sshd
+
+- name: "5.1.8 | PATCH | Ensure sshd DisableForwarding is enabled"
+  when: suse16cis_rule_5_1_8
+  tags:
+    - level2-server
+    - level1-workstation
+    - patch
+    - ssh
+    - rule_5.1.8
+    - NIST800-53R5_CM-7
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config.d/forwarding.conf
+    regexp: ^(#|)\s*DisableForwarding
+    line: 'DisableForwarding yes'
+    create: true
+    owner: root
+    group: root
+    mode: 'u-x,go-rwx'
+    validate: sshd -t -f %s
+  notify: Restart sshd
+
+- name: "5.1.9 | PATCH | Ensure sshd GSSAPIAuthentication is disabled"
+  when: suse16cis_rule_5_1_9
+  tags:
+    - level2-server
+    - level1-workstation
+    - patch
+    - ssh
+    - rule_5.1.9
+    - NIST800-53R5_CM-1
+    - NIST800-53R5_CM-2
+    - NIST800-53R5_CM-6
+    - NIST800-53R5_CM-7
+    - NIST800-53R5_IA-5
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config.d/gssapi_auth.conf
+    regexp: (?i)^(#|)\s*GSSAPIAuthentication
+    line: GSSAPIAuthentication no
+    create: true
+    owner: root
+    group: root
+    mode: 'u-x,go-rwx'
+    validate: sshd -t -f %s
+  notify: Restart sshd
+
+- name: "5.1.10 | PATCH | Ensure sshd HostbasedAuthentication is disabled"
+  when: suse16cis_rule_5_1_10
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - ssh
+    - rule_5.1.10
+    - NIST800-53R5_CM-1
+    - NIST800-53R5_CM-2
+    - NIST800-53R5_CM-6
+    - NIST800-53R5_CM-7
+    - NIST800-53R5_IA-5
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config.d/hostbased_auth.conf
+    regexp: (?i)^(#|)\s*HostbasedAuthentication
+    line: 'HostbasedAuthentication no'
+    create: true
+    owner: root
+    group: root
+    mode: 'u-x,go-rwx'
+    validate: sshd -t -f %s
+  notify: Restart sshd
+
+- name: "5.1.11 | PATCH | Ensure sshd IgnoreRhosts is enabled"
+  when: suse16cis_rule_5_1_11
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - ssh
+    - rule_5.1.11
+    - NIST800-53R5_CM-1
+    - NIST800-53R5_CM-2
+    - NIST800-53R5_CM-6
+    - NIST800-53R5_CM-7
+    - NIST800-53R5_IA-5
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config.d/ignore_rhosts.conf
+    regexp: (?i)^(#|)\s*IgnoreRhosts
+    line: 'IgnoreRhosts yes'
+    create: true
+    owner: root
+    group: root
+    mode: 'u-x,go-rwx'
+    validate: sshd -t -f %s
+  notify: Restart sshd
+
+- name: "5.1.12 | PATCH | Ensure sshd KexAlgorithms is configured"
+  when:
+    - suse16cis_rule_5_1_12
+    - "'NO-SHA1' not in suse16cis_crypto_policy_module"
+  tags:
+    - level1-server
+    - level1-workstation
+    - automated
+    - patch
+    - crypto
+    - rule_5.1.12
+    - NIST800-53R5_SC-8
+  block:
+    - name: "5.1.12 | PATCH | Ensure sshd KexAlgorithms is configured | Add submodule exclusion"
+      ansible.builtin.template:
+        src: etc/crypto-policies/policies/modules/NO-SHA1.pmod.j2
+        dest: /etc/crypto-policies/policies/modules/NO-SHA1.pmod
+        owner: root
+        group: root
+        mode: 'u-x,go-rwx'
+      notify:
+        - Update Crypto Policy
+        - Set Crypto Policy
+
+    - name: "5.1.12 | PATCH | Ensure sshd KexAlgorithms is configured | Remove weak kex from ssh config"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config.d/kex_algos.conf
+        regexp: "^KexAlgorithms"
+        line: "KexAlgorithms -{{ suse16cis_sshd_weak_kex | join(',') }}"
+        create: true
+        owner: root
+        group: root
+        mode: 'u-x,go-rwx'
+        validate: sshd -t -f %s
+      notify: Restart sshd
+
+    - name: "5.1.12 | PATCH | Ensure sshd KexAlgorithms is configured | submodule to crypto policy modules"
+      ansible.builtin.set_fact:
+        suse16cis_crypto_policy_module: "{{ suse16cis_crypto_policy_module + ':NO-SHA1' }}"
+
+- name: "5.1.13 | PATCH | Ensure sshd LoginGraceTime is configured"
+  when: suse16cis_rule_5_1_13
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - ssh
+    - rule_5.1.13
+    - NIST800-53R5_CM-6
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config.d/login_time.conf
+    regexp: (?i)^(#|)\s*LoginGraceTime
+    line: "LoginGraceTime {{ suse16cis_sshd_login_grace_time }}"
+    create: true
+    owner: root
+    group: root
+    mode: 'u-x,go-rwx'
+    validate: sshd -t -f %s
+  notify: Restart sshd
+
+- name: "5.1.14 | PATCH | Ensure sshd LogLevel is configured"
+  when: suse16cis_rule_5_1_14
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - ssh
+    - rule_5.1.14
+    - NIST800-53R5_AU-3
+    - NIST800-53R5_AU-12
+    - NIST800-53R5_SI-5
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config.d/loglevel.conf
+    regexp: (?i)^(#|)\s*LogLevel
+    line: 'LogLevel {{ suse16cis_sshd_log_level }}'
+    create: true
+    owner: root
+    group: root
+    mode: 'u-x,go-rwx'
+    validate: sshd -t -f %s
+  notify: Restart sshd
+
+- name: "5.1.15 | PATCH | Ensure sshd MACs are configured"
+  when:
+    - suse16cis_rule_5_1_15
+    - "'NO-SSHWEAKMACS' not in suse16cis_crypto_policy_module"
+  tags:
+    - level1-server
+    - level1-workstation
+    - automated
+    - patch
+    - crypto
+    - rule_5.1.15
+    - NIST800-53R5_SC-8
+  block:
+    - name: "5.1.15 | PATCH | Ensure sshd MACs are configured | Add submodule exclusion"
+      ansible.builtin.template:
+        src: etc/crypto-policies/policies/modules/NO-SSHWEAKMACS.pmod.j2
+        dest: /etc/crypto-policies/policies/modules/NO-SSHWEAKMACS.pmod
+        owner: root
+        group: root
+        mode: 'g-wx,o-rwx'
+      notify:
+        - Update Crypto Policy
+        - Set Crypto Policy
+
+    - name: "5.1.15 | PATCH | Ensure sshd MACs are configured | Remove weak macs from ssh config"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config.d/weak_macs.conf
+        regexp: "^MACs"
+        line: "MACs -{{ suse16cis_sshd_weak_macs | join(',') }}"
+        create: true
+        owner: root
+        group: root
+        mode: 'u-x,go-rwx'
+        validate: sshd -t -f %s
+      notify: Restart sshd
+
+    - name: "5.1.15 | PATCH | Ensure sshd MACs are configured | submodule to crypto policy modules"
+      ansible.builtin.set_fact:
+        suse16cis_crypto_policy_module: "{{ suse16cis_crypto_policy_module + ':' + 'NO-SSHWEAKMACS' }}"
+
+- name: "5.1.16 | PATCH | Ensure sshd MaxAuthTries is configured"
+  when: suse16cis_rule_5_1_16
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - ssh
+    - rule_5.1.16
+    - NIST800-53R5_AU-3
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config.d/max_auth.conf
+    regexp: '^(#)?MaxAuthTries \d'
+    line: 'MaxAuthTries {{ suse16cis_sshd_max_auth_tries }}'
+    create: true
+    owner: root
+    group: root
+    mode: 'u-x,go-rwx'
+    validate: sshd -t -f %s
+  notify: Restart sshd
+
+- name: "5.1.17 | PATCH | Ensure sshd MaxStartups is configured"
+  when: suse16cis_rule_5_1_17
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - ssh
+    - rule_5.1.17
+    - NIST800-53R5_CM-1
+    - NIST800-53R5_CM-2
+    - NIST800-53R5_CM-6
+    - NIST800-53R5_CM-7
+    - NIST800-53R5_IA-5
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config.d/max_startups.conf
+    regexp: (?i)^(#|)\s*MaxStartups
+    line: 'MaxStartups {{ suse16cis_sshd_max_startups }}'
+    create: true
+    owner: root
+    group: root
+    mode: 'u-x,go-rwx'
+    validate: sshd -t -f %s
+  notify: Restart sshd
+
+- name: "5.1.18 | PATCH | Ensure sshd MaxSessions is configured"
+  when: suse16cis_rule_5_1_18
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - ssh
+    - rule_5.1.18
+    - NIST800-53R5_CM-1
+    - NIST800-53R5_CM-2
+    - NIST800-53R5_CM-6
+    - NIST800-53R5_CM-7
+    - NIST800-53R5_IA-5
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config.d/max_sessions.conf
+    regexp: (?i)^(#|)\s*MaxSessions
+    line: 'MaxSessions {{ suse16cis_sshd_max_sessions }}'
+    create: true
+    owner: root
+    group: root
+    mode: 'u-x,go-rwx'
+    validate: sshd -t -f %s
+  notify: Restart sshd
+
+- name: "5.1.19 | PATCH | Ensure sshd PermitEmptyPasswords is disabled"
+  when: suse16cis_rule_5_1_19
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - ssh
+    - rule_5.1.19
+    - NIST800-53R5_CM-1
+    - NIST800-53R5_CM-2
+    - NIST800-53R5_CM-6
+    - NIST800-53R5_CM-7
+    - NIST800-53R5_IA-5
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config.d/empty_passwords.conf
+    regexp: (?i)^(#|)\s*PermitEmptyPasswords
+    line: 'PermitEmptyPasswords no'
+    create: true
+    owner: root
+    group: root
+    mode: 'u-x,go-rwx'
+    validate: sshd -t -f %s
+  notify: Restart sshd
+
+- name: "5.1.20 | PATCH | Ensure sshd PermitRootLogin is disabled"
+  when: suse16cis_rule_5_1_20
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - ssh
+    - rule_5.1.20
+    - NIST800-53R5_AC-6
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config.d/root_login.conf
+    regexp: (?i)^(#|)\s*PermitRootLogin
+    line: 'PermitRootLogin no'
+    create: true
+    owner: root
+    group: root
+    mode: 'u-x,go-rwx'
+    validate: sshd -t -f %s
+  notify: Restart sshd
+
+- name: "5.1.21 | PATCH | Ensure sshd PermitUserEnvironment is disabled"
+  when: suse16cis_rule_5_1_21
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - ssh
+    - rule_5.1.21
+    - NIST800-53R5_CM-1
+    - NIST800-53R5_CM-2
+    - NIST800-53R5_CM-6
+    - NIST800-53R5_CM-7
+    - NIST800-53R5_IA-5
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config.d/permit_userenv.conf
+    regexp: (?i)^(#|)\s*PermitUserEnvironment
+    line: 'PermitUserEnvironment no'
+    create: true
+    owner: root
+    group: root
+    mode: 'u-x,go-rwx'
+    validate: sshd -t -f %s
+  notify: Restart sshd
+
+- name: "5.1.22 | PATCH | Ensure sshd UsePAM is enabled"
+  when: suse16cis_rule_5_1_22
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - ssh
+    - rule_5.1.22
+    - NIST800-53R5_CM-1
+    - NIST800-53R5_CM-2
+    - NIST800-53R5_CM-6
+    - NIST800-53R5_CM-7
+    - NIST800-53R5_IA-5
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config.d/use_pam.conf
+    regexp: (?i)^(#|)\s*UsePAM
+    line: 'UsePAM yes'
+    create: true
+    owner: root
+    group: root
+    mode: 'u-x,go-rwx'
+    validate: sshd -t -f %s
+  notify: Restart sshd
+
+- name: "5.1.23 | PATCH | Ensure sshd post-quantum cryptography key exchange algorithms are configured"
+  when: suse16cis_rule_5_1_23
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - ssh
+    - rule_5.1.23
+  block:
+    - name: "5.1.23 | AUDIT | Ensure sshd post-quantum cryptography key exchange algorithms are configured | Verify sntrup761 kex is available"
+      ansible.builtin.command: sshd -T
+      changed_when: false
+      register: discovered_sshd_kexalgorithms
+
+    - name: "5.1.23 | AUDIT | Ensure sshd post-quantum cryptography key exchange algorithms are configured | Warn if post-quantum kex missing"
+      when: "'sntrup761x25519-sha512' not in discovered_sshd_kexalgorithms.stdout"
+      ansible.builtin.debug:
+        msg: "Warning!! Post-quantum KexAlgorithm sntrup761x25519-sha512 not present in sshd -T output for control 5.1.23."
+
+    - name: "5.1.23 | AUDIT | Ensure sshd post-quantum cryptography key exchange algorithms are configured | Warn Count"
+      when: "'sntrup761x25519-sha512' not in discovered_sshd_kexalgorithms.stdout"
+      ansible.builtin.import_tasks:
+        file: warning_facts.yml
+
+- name: "5.1.24 | PATCH | Ensure sshd ListenAddress is configured"
+  when: suse16cis_rule_5_1_24
+  tags:
+    - level2-server
+    - level2-workstation
+    - patch
+    - ssh
+    - rule_5.1.24
+  block:
+    - name: "5.1.24 | PATCH | Ensure sshd ListenAddress is configured | Apply if address configured"
+      when: suse16cis_sshd_listen_address | length > 0
+      ansible.builtin.lineinfile:
+        path: "{{ suse16cis_sshd_config_file }}"
+        regexp: (?i)^(#|)\s*ListenAddress
+        line: "ListenAddress {{ suse16cis_sshd_listen_address }}"
+        validate: sshd -t -f %s
+      notify: Restart sshd
+
+    - name: "5.1.24 | PATCH | Ensure sshd ListenAddress is configured | Warn if not configured"
+      when: suse16cis_sshd_listen_address | length == 0
+      ansible.builtin.debug:
+        msg: "Warning!! suse16cis_sshd_listen_address is not set. Set it to a private network interface address to comply with 5.1.24."
+
+    - name: "5.1.24 | PATCH | Ensure sshd ListenAddress is configured | Warn Count"
+      when: suse16cis_sshd_listen_address | length == 0
+      ansible.builtin.import_tasks:
+        file: warning_facts.yml
+      vars:
+        warn_control_id: '5.1.24'

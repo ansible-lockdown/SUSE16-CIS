@@ -1,0 +1,6 @@
+{{ file_managed_by_ansible }}
+
+cat <<EOF
+set superusers="{{ suse16cis_grub_user }}"
+password_pbkdf2 {{ suse16cis_grub_user }} {{ suse16cis_bootloader_password_hash }}
+EOF

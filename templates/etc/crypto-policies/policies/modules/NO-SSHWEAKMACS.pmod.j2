@@ -1,0 +1,5 @@
+{{ file_managed_by_ansible }}
+# This is a subpolicy to disable weak macs
+# Carried out as part of CIS Benchmark control 5.1.6
+
+mac@SSH = -HMAC-MD5* -UMAC-64* -UMAC-128*

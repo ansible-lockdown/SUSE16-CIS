@@ -1,0 +1,324 @@
+---
+
+- name: "1.8.1 | PATCH | Ensure GDM login banner is configured"
+  when:
+    - suse16cis_rule_1_8_1
+    - suse16cis_gui
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - gui
+    - gdm
+    - rule_1.8.1
+    - NIST800-53R5_NA
+  block:
+    - name: "1.8.1 | PATCH | Ensure GDM login banner is configured | User profile"
+      ansible.builtin.lineinfile:
+        path: /etc/dconf/profile/user
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        create: true
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      loop:
+        - { regexp: '^user-db', line: 'user-db:user' }
+        - { regexp: '^system-db', line: 'system-db:{{ suse16cis_dconf_db_name }}' }
+
+    - name: "1.8.1 | PATCH | Ensure GDM login banner is configured | Make db directory"
+      ansible.builtin.file:
+        path: "/etc/dconf/db/{{ suse16cis_dconf_db_name }}.d"
+        owner: root
+        group: root
+        mode: 'go-w'
+        state: directory
+
+    - name: "1.8.1 | PATCH | Ensure GDM login banner is configured | Make conf file"
+      ansible.builtin.template:
+        src: etc/dconf/db/00-banner-message.j2
+        dest: "/etc/dconf/db/{{ suse16cis_dconf_db_name }}.d/00-banner-message"
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      notify: Reload dconf
+
+    - name: "1.8.1 | PATCH | Ensure GDM login banner is configured | Make lock directory"
+      ansible.builtin.file:
+        path: "/etc/dconf/db/{{ suse16cis_dconf_db_name }}.d/locks"
+        owner: root
+        group: root
+        mode: 'go-w'
+        state: directory
+
+    - name: "1.8.1 | PATCH | Ensure GDM login banner is configured | Make lock file"
+      ansible.builtin.template:
+        src: etc/dconf/db/00-banner-message_lock.j2
+        dest: "/etc/dconf/db/{{ suse16cis_dconf_db_name }}.d/locks/00-banner-message_lock"
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      notify: Reload dconf
+
+- name: "1.8.2 | PATCH | Ensure GDM disable-user-list is configured"
+  when:
+    - suse16cis_rule_1_8_2
+    - suse16cis_gui
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - gui
+    - gdm
+    - rule_1.8.2
+    - NIST800-53R5_NA
+  block:
+    - name: "1.8.2 | PATCH | Ensure GDM disable-user-list is configured | User profile"
+      ansible.builtin.lineinfile:
+        path: /etc/dconf/profile/user
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        create: true
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      loop:
+        - { regexp: '^user-db', line: 'user-db:user' }
+        - { regexp: '^system-db', line: 'system-db:{{ suse16cis_dconf_db_name }}' }
+
+    - name: "1.8.2 | PATCH | Ensure GDM disable-user-list is configured | Make db directory"
+      ansible.builtin.file:
+        path: "/etc/dconf/db/{{ suse16cis_dconf_db_name }}.d"
+        owner: root
+        group: root
+        mode: 'go-w'
+        state: directory
+
+    - name: "1.8.2 | PATCH | Ensure GDM disable-user-list is configured | Make conf file"
+      ansible.builtin.template:
+        src: etc/dconf/db/00-login-screen.j2
+        dest: "/etc/dconf/db/{{ suse16cis_dconf_db_name }}.d/00-login-screen"
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      notify: Reload dconf
+
+    - name: "1.8.2 | PATCH | Ensure GDM disable-user-list is configured | Make lock directory"
+      ansible.builtin.file:
+        path: "/etc/dconf/db/{{ suse16cis_dconf_db_name }}.d/locks"
+        owner: root
+        group: root
+        mode: 'go-w'
+        state: directory
+
+    - name: "1.8.2 | PATCH | Ensure GDM disable-user-list is configured | Make lock file"
+      ansible.builtin.template:
+        src: etc/dconf/db/00-login-screen_lock.j2
+        dest: "/etc/dconf/db/{{ suse16cis_dconf_db_name }}.d/locks/00-login-screen_lock"
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      notify: Reload dconf
+
+- name: "1.8.3 | PATCH | Ensure GDM screen lock is configured"
+  when:
+    - suse16cis_rule_1_8_3
+    - suse16cis_gui
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - gui
+    - gdm
+    - rule_1.8.3
+    - NIST800-53R5_NA
+  block:
+    - name: "1.8.3 | PATCH | Ensure GDM screen lock is configured | User profile"
+      ansible.builtin.lineinfile:
+        path: /etc/dconf/profile/user
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        create: true
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      loop:
+        - { regexp: '^user-db', line: 'user-db:user' }
+        - { regexp: '^system-db', line: 'system-db:{{ suse16cis_dconf_db_name }}' }
+
+    - name: "1.8.3 | PATCH | Ensure GDM screen lock is configured | Make db directory"
+      ansible.builtin.file:
+        path: "/etc/dconf/db/{{ suse16cis_dconf_db_name }}.d"
+        owner: root
+        group: root
+        mode: 'go-w'
+        state: directory
+
+    - name: "1.8.3 | PATCH | Ensure GDM screen lock is configured | Make conf file"
+      ansible.builtin.template:
+        src: etc/dconf/db/00-screensaver.j2
+        dest: "/etc/dconf/db/{{ suse16cis_dconf_db_name }}.d/00-screensaver"
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      notify: Reload dconf
+
+    - name: "1.8.3 | PATCH | Ensure GDM screen lock is configured | Make lock directory"
+      ansible.builtin.file:
+        path: "/etc/dconf/db/{{ suse16cis_dconf_db_name }}.d/locks"
+        owner: root
+        group: root
+        mode: 'go-w'
+        state: directory
+
+    - name: "1.8.3 | PATCH | Ensure GDM screen lock is configured | Make lock file"
+      ansible.builtin.template:
+        src: etc/dconf/db/00-screensaver_lock.j2
+        dest: "/etc/dconf/db/{{ suse16cis_dconf_db_name }}.d/locks/00-screensaver_lock"
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      notify: Reload dconf
+
+- name: "1.8.4 | PATCH | Ensure GDM automount is configured"
+  when:
+    - suse16cis_rule_1_8_4
+    - suse16cis_gui
+  tags:
+    - level1-server
+    - level2-workstation
+    - patch
+    - gui
+    - rule_1.8.4
+    - NIST800-53R5_NA
+  block:
+    - name: "1.8.4 | PATCH | Ensure GDM automount is configured | User profile"
+      ansible.builtin.lineinfile:
+        path: /etc/dconf/profile/user
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        create: true
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      loop:
+        - { regexp: '^user-db', line: 'user-db:user' }
+        - { regexp: '^system-db', line: 'system-db:local' }
+      loop_control:
+        label: "{{ item }}"
+
+    - name: "1.8.4 | PATCH | Ensure GDM automount is configured | Make db directory"
+      ansible.builtin.file:
+        path: "/etc/dconf/db/{{ suse16cis_dconf_db_name }}.d"
+        owner: root
+        group: root
+        mode: 'go-w'
+        state: directory
+
+    - name: "1.8.4 | PATCH | Ensure GDM automount is configured | Make conf file"
+      ansible.builtin.template:
+        src: etc/dconf/db/00-media-automount.j2
+        dest: "/etc/dconf/db/{{ suse16cis_dconf_db_name }}.d/00-media-automount"
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      notify: Reload dconf
+
+    - name: "1.8.4 | PATCH | Ensure GDM automount is configured | Make lock directory"
+      ansible.builtin.file:
+        path: "/etc/dconf/db/{{ suse16cis_dconf_db_name }}.d/locks"
+        owner: root
+        group: root
+        mode: 'go-w'
+        state: directory
+
+    - name: "1.8.4 | PATCH | Ensure GDM automount is configured | Make lock file"
+      ansible.builtin.template:
+        src: etc/dconf/db/00-automount_lock.j2
+        dest: "/etc/dconf/db/{{ suse16cis_dconf_db_name }}.d/locks/00-automount_lock"
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      notify: Reload dconf
+
+- name: "1.8.5 | PATCH | Ensure GDM autorun-never is configured"
+  when:
+    - suse16cis_rule_1_8_5
+    - suse16cis_gui
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - gui
+    - rule_1.8.5
+    - NIST800-53R5_NA
+  block:
+    - name: "1.8.5 | PATCH | Ensure GDM autorun-never is configured | Make db directory"
+      ansible.builtin.file:
+        path: "/etc/dconf/db/{{ suse16cis_dconf_db_name }}.d"
+        owner: root
+        group: root
+        mode: 'go-w'
+        state: directory
+
+    - name: "1.8.5 | PATCH | Ensure GDM autorun-never is configured | Make conf file"
+      ansible.builtin.template:
+        src: etc/dconf/db/00-media-autorun.j2
+        dest: "/etc/dconf/db/{{ suse16cis_dconf_db_name }}.d/00-media-autorun"
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      notify: Reload dconf
+
+    - name: "1.8.5 | PATCH | Ensure GDM autorun-never is configured | Make lock directory"
+      ansible.builtin.file:
+        path: "/etc/dconf/db/{{ suse16cis_dconf_db_name }}.d/locks"
+        owner: root
+        group: root
+        mode: 'go-w'
+        state: directory
+
+    - name: "1.8.5 | PATCH | Ensure GDM autorun-never is configured | Make lock file"
+      ansible.builtin.template:
+        src: etc/dconf/db/00-autorun_lock.j2
+        dest: "/etc/dconf/db/{{ suse16cis_dconf_db_name }}.d/locks/00-autorun_lock"
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      notify: Reload dconf
+
+- name: "1.8.6 | PATCH | Ensure XDMCP is not enabled"
+  when:
+    - suse16cis_rule_1_8_6
+    - suse16cis_gui
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - gui
+    - rule_1.8.6
+    - NIST800-53R5_NA
+  ansible.builtin.lineinfile:
+    path: /etc/gdm/custom.conf
+    regexp: '^\s*Enable\s*='
+    line: '#Enable=true'
+    insertafter: '^\[xdmcp\]'
+    create: false
+
+- name: "1.8.7 | PATCH | Ensure Xwayland is configured"
+  when:
+    - suse16cis_rule_1_8_7
+    - suse16cis_gui
+  tags:
+    - level2-server
+    - level2-workstation
+    - patch
+    - gui
+    - rule_1.8.7
+    - NIST800-53R5_NA
+  ansible.builtin.lineinfile:
+    path: /etc/gdm/custom.conf
+    regexp: '^\s*WaylandEnable\s*='
+    line: 'WaylandEnable=false'
+    insertafter: '^\[daemon\]'
+    create: false

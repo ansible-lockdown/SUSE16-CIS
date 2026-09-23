@@ -1,0 +1,224 @@
+---
+
+- name: "4.1.1 | PATCH | Ensure firewalld is installed"
+  when:
+    - suse16cis_rule_4_1_1
+    - suse16cis_firewall_package == 'firewalld'
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - firewall
+    - nftables
+    - rule_4.1.1
+  ansible.builtin.package:
+    name: firewalld
+    state: present
+
+- name: "4.1.2 | PATCH | Ensure firewalld backend is configured"
+  when:
+    - suse16cis_rule_4_1_2
+    - suse16cis_firewall_package == 'firewalld'
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - firewall
+    - rule_4.1.2
+  ansible.builtin.lineinfile:
+    path: /etc/firewalld/firewalld.conf
+    regexp: '^\s*FirewallBackend\s*='
+    line: 'FirewallBackend=nftables'
+    create: false
+
+- name: "4.1.3 | PATCH | Ensure firewalld.service is configured"
+  when:
+    - suse16cis_rule_4_1_3
+    - suse16cis_firewall_package == 'firewalld'
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - firewall
+    - rule_4.1.3
+  block:
+    - name: "4.1.3 | PATCH | Ensure firewalld.service is configured | Enable and start"
+      ansible.builtin.systemd:
+        name: firewalld
+        enabled: true
+        masked: false
+        state: started
+
+    - name: "4.1.3 | PATCH | Ensure firewalld.service is configured | Wait for firewalld to accept commands"
+      ansible.builtin.command: firewall-cmd --state
+      changed_when: false
+      register: discovered_firewalld_state
+      until: discovered_firewalld_state.rc == 0
+      retries: 15
+      delay: 2
+
+- name: "4.1.4 | AUDIT | Ensure firewalld active zone target is configured"
+  when:
+    - suse16cis_rule_4_1_4
+    - suse16cis_firewall_package == 'firewalld'
+  tags:
+    - level2-server
+    - audit
+    - firewall
+    - rule_4.1.4
+  block:
+    - name: "4.1.4 | AUDIT | Ensure firewalld active zone target is configured | Get active zone targets"
+      ansible.builtin.shell: |
+        set -o pipefail
+        firewall-cmd --list-all-zones | awk '/^[a-z]/ { zone=$1 } /target:/ { print zone": ",$0 }'
+      changed_when: false
+      failed_when: false
+      args:
+        executable: "{{ suse16cis_shell_executable }}"
+      register: discovered_firewalld_zone_targets
+
+    - name: "4.1.4 | AUDIT | Ensure firewalld active zone target is configured | Display zone targets"
+      ansible.builtin.debug:
+        msg:
+          - "Warning!! Review active zone targets below. Ensure no active interface zone uses target ACCEPT."
+          - "{{ discovered_firewalld_zone_targets.stdout_lines }}"
+
+    - name: "4.1.4 | AUDIT | Ensure firewalld active zone target is configured | Warn Count"
+      ansible.builtin.import_tasks:
+        file: warning_facts.yml
+      vars:
+        warn_control_id: '4.1.4'
+
+- name: "4.1.5 | AUDIT | Ensure firewalld loopback traffic is configured"
+  when:
+    - suse16cis_rule_4_1_5
+    - suse16cis_firewall_package == 'firewalld'
+    - suse16cis_disruption_high
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - firewall
+    - rule_4.1.5
+  block:
+    - name: "4.1.5 | AUDIT | Ensure firewalld loopback traffic is configured"
+      ansible.builtin.command: firewall-cmd --get-zone-of-interface=lo
+      changed_when: false
+      failed_when: discovered_loopback_zone_configured.rc not in [ 0, 2, 252 ]
+      register: discovered_loopback_zone_configured
+
+    - name: "4.1.5 | PATCH | Ensure firewalld loopback traffic is configured | if no zone"
+      when: discovered_loopback_zone_configured.rc == 2
+      ansible.builtin.command: firewall-cmd --permanent --zone={{ suse16cis_loopback_zone }} --add-interface=lo
+      changed_when: true
+      notify: Reload firewalld
+
+    - name: "4.1.5 | PATCH | Ensure firewalld loopback traffic is configured | if in another zone"
+      when:
+        - discovered_loopback_zone_configured.rc == 0
+        - discovered_loopback_zone_configured.stdout | trim != suse16cis_loopback_zone
+      ansible.builtin.command: firewall-cmd --permanent --zone={{ suse16cis_loopback_zone }} --change-interface=lo
+      changed_when: true
+      notify: Reload firewalld
+
+- name: "4.1.6 | AUDIT | Ensure firewalld loopback source address traffic is configured"
+  when:
+    - suse16cis_rule_4_1_6
+    - suse16cis_firewall_package == 'firewalld'
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - firewall
+    - rule_4.1.6
+  block:
+    - name: "4.1.6 | AUDIT | Ensure firewalld loopback source address traffic is configured | Warn"
+      ansible.builtin.command: firewall-cmd --zone={{ suse16cis_loopback_zone }} --list-rich-rules
+      changed_when: false
+      failed_when: false
+      register: discovered_loopback_address_configured
+
+    - name: "4.1.6 | PATCH | Ensure firewalld loopback source address traffic is configured | Set loopback zone ipv4"
+      when:
+        - discovered_loopback_address_configured.rc == 0
+        - not ipv4_loopback in discovered_loopback_address_configured.stdout
+      ansible.builtin.command: |
+        firewall-cmd --permanent --zone={{ suse16cis_loopback_zone }} --add-rich-rule='rule family=ipv4 source address="127.0.0.1" destination NOT address="127.0.0.1" drop'
+      changed_when: true
+      notify: Reload firewalld
+      vars:
+        ipv4_loopback: 'rule family="ipv4" source address="127.0.0.1" destination NOT address="127.0.0.1'
+
+    - name: "4.1.6 | PATCH | Ensure firewalld loopback source address traffic is configured | Set loopback zone ipv6"
+      when:
+        - discovered_loopback_address_configured.rc == 0
+        - suse16cis_ipv6_required
+        - not ipv6_loopback in discovered_loopback_address_configured.stdout
+      ansible.builtin.command: |
+        firewall-cmd --permanent --zone={{ suse16cis_loopback_zone }} --add-rich-rule='rule family=ipv6 source address="::1" destination not address="::1" drop'
+      changed_when: true
+      notify: Reload firewalld
+      vars:
+        ipv6_loopback: 'rule family="ipv6" source address="::1" destination not address="::1" drop'
+
+- name: "4.1.7 | AUDIT | Ensure firewalld services and ports are configured"
+  when:
+    - suse16cis_rule_4_1_7
+    - suse16cis_firewall_package == 'firewalld'
+  tags:
+    - level1-server
+    - level1-workstation
+    - audit
+    - firewall
+    - rule_4.1.7
+  block:
+    - name: "4.1.7 | AUDIT | Ensure firewalld services and ports are configured | List rules"
+      ansible.builtin.shell: |
+        set -o pipefail
+        firewall-cmd --list-all --zone="$(firewall-cmd --list-all | awk '/\(active\)/ { print $1 }')"
+      changed_when: false
+      failed_when: false
+      args:
+        executable: "{{ suse16cis_shell_executable }}"
+      register: discovered_firewalld_rules
+
+    - name: "4.1.7 | AUDIT | Ensure firewalld services and ports are configured | Display rules"
+      ansible.builtin.debug:
+        msg:
+          - "Warning!! Review active firewalld services and ports below. Remove anything not required by site policy."
+          - "{{ discovered_firewalld_rules.stdout_lines }}"
+
+    - name: "4.1.7 | AUDIT | Ensure firewalld services and ports are configured | Warn Count"
+      ansible.builtin.import_tasks:
+        file: warning_facts.yml
+      vars:
+        warn_control_id: '4.1.7'
+
+- name: "4.1.8 | AUDIT | Configure firewall to drop all traffic"
+  when:
+    - suse16cis_rule_4_1_8
+    - suse16cis_firewall_package == 'firewalld'
+  tags:
+    - level1-server
+    - level1-workstation
+    - audit
+    - firewall
+    - rule_4.1.8
+  block:
+    - name: "4.1.8 | AUDIT | Configure firewall to drop all traffic | Get default zone"
+      ansible.builtin.command: firewall-cmd --get-default-zone
+      changed_when: false
+      failed_when: false
+      register: discovered_firewalld_default_zone
+
+    - name: "4.1.8 | AUDIT | Configure firewall to drop all traffic | Display default zone"
+      ansible.builtin.debug:
+        msg:
+          - "Warning!! Manual check required. Default firewalld zone is: {{ discovered_firewalld_default_zone.stdout }}"
+          - "Ensure the default zone is set to 'drop' per site policy."
+
+    - name: "4.1.8 | AUDIT | Configure firewall to drop all traffic | Warn Count"
+      ansible.builtin.import_tasks:
+        file: warning_facts.yml
+      vars:
+        warn_control_id: '4.1.8'

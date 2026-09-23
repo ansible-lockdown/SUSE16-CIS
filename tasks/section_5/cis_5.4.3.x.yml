@@ -1,0 +1,96 @@
+---
+
+- name: "5.4.3.1 | PATCH | Ensure nologin is not listed in /etc/shells"
+  when: suse16cis_rule_5_4_3_1
+  tags:
+    - level2-server
+    - level2-workstation
+    - patch
+    - shells
+    - rule_5.4.3.1
+    - NIST800-53R5_CM-1
+    - NIST800-53R5_CM-2
+    - NIST800-53R5_CM-6
+    - NIST800-53R5_CM-7
+    - NIST800-53R5_IA-5
+  ansible.builtin.replace:
+    path: /etc/shells
+    regexp: nologin
+    replace: ""
+
+- name: "5.4.3.2 | PATCH | Ensure default user shell timeout is configured"
+  when: suse16cis_rule_5_4_3_2
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - shell
+    - rule_5.4.3.2
+  ansible.builtin.blockinfile:
+    path: "{{ item.path }}"
+    state: "{{ item.state }}"
+    marker: "# {mark} - CIS benchmark - Ansible-lockdown"
+    create: true
+    mode: 'u-x,go-wx'
+    block: |
+      TMOUT={{ suse16cis_shell_session_timeout }}
+      readonly TMOUT
+      export TMOUT
+  loop:
+    - { path: "{{ suse16cis_shell_session_file }}", state: present }
+    - { path: /etc/profile, state: "{{ (suse16cis_shell_session_file == '/etc/profile') | ternary('present', 'absent') }}" }
+  loop_control:
+    label: "{{ item }}"
+
+- name: "5.4.3.3 | PATCH | Ensure default user umask in /etc/login.defs is configured"
+  when: suse16cis_rule_5_4_3_3
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - umask
+    - rule_5.4.3.3
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  block:
+    - name: "5.4.3.3 | PATCH | Ensure default user umask in /etc/login.defs is configured | set files"
+      ansible.builtin.replace:
+        path: "{{ item.path }}"
+        regexp: (?i)(umask\s+\d*)
+        replace: "{{ item.line }} {{ suse16cis_bash_umask }}"
+      loop:
+        - { path: "/etc/profile", line: "umask" }
+        - { path: "/etc/login.defs", line: "UMASK" }
+
+    - name: "5.4.3.3 | PATCH | Ensure default user umask in /etc/login.defs is configured | search for .sh files"
+      ansible.builtin.find:
+        paths: /etc/profile.d/
+        patterns: "*.sh"
+        excludes: "60-default_umask.sh"
+      register: discovered_profile_scripts
+
+    - name: "5.4.3.3 | PATCH | Ensure default user umask in /etc/login.defs is configured | remove setting elsewhere"
+      ansible.builtin.replace:
+        path: "{{ item.path }}"
+        regexp: '(?i)^(\s*umask\s+\d+.*)$'
+        replace: '# \1'
+      loop: "{{ discovered_profile_scripts.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+- name: "5.4.3.4 | PATCH | Ensure default user umask in /etc/profile.d is configured"
+  when: suse16cis_rule_5_4_3_4
+  tags:
+    - level1-server
+    - level1-workstation
+    - patch
+    - umask
+    - rule_5.4.3.4
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  ansible.builtin.lineinfile:
+    path: /etc/profile.d/60-default_umask.sh
+    regexp: (?i)^\s*umask\b
+    line: "umask {{ suse16cis_bash_umask }}"
+    create: true
+    mode: 'u-x,go-wx'

@@ -1,0 +1,259 @@
+---
+
+- name: "Remount tmp filesystem"
+  ansible.builtin.include_tasks:
+    file: remount_tmp.yml
+  listen: "Remount /tmp"
+
+- name: "Adding options for /dev/shm"
+  vars:
+    mount_point: '/dev/shm'
+  ansible.posix.mount:
+    path: "{{ mount_point }}"
+    src: "{{ prelim_mount_point_fs_and_options[mount_point]['src'] }}"
+    state: present
+    fstype: "{{ prelim_mount_point_fs_and_options[mount_point]['fs_type'] }}"
+    opts: "{{ prelim_mount_point_fs_and_options[mount_point]['options'] | unique | join(',') }}"
+  listen: "Remount /dev/shm"
+
+- name: "Remounting /dev/shm"
+  vars:
+    mount_point: '/dev/shm'
+  ansible.posix.mount:
+    path: "{{ mount_point }}"
+    state: remounted
+  listen: "Remount /dev/shm"
+
+- name: "Adding options for /home"
+  vars:
+    mount_point: '/home'
+  ansible.posix.mount:
+    path: "{{ mount_point }}"
+    src: "{{ prelim_mount_point_fs_and_options[mount_point]['src'] }}"
+    state: present
+    fstype: "{{ prelim_mount_point_fs_and_options[mount_point]['fs_type'] }}"
+    opts: "{{ prelim_mount_point_fs_and_options[mount_point]['options'] | unique | join(',') }}"
+  listen: "Remount /home"
+
+- name: "Remounting /home"
+  vars:
+    mount_point: '/home'
+  ansible.posix.mount:
+    path: "{{ mount_point }}"
+    state: remounted
+  listen: "Remount /home"
+
+- name: "Adding options for /var"
+  vars:
+    mount_point: '/var'
+  ansible.posix.mount:
+    path: "{{ mount_point }}"
+    src: "{{ prelim_mount_point_fs_and_options[mount_point]['src'] }}"
+    state: present
+    fstype: "{{ prelim_mount_point_fs_and_options[mount_point]['fs_type'] }}"
+    opts: "{{ prelim_mount_point_fs_and_options[mount_point]['options'] | unique | join(',') }}"
+  listen: "Remount /var"
+
+- name: "Remounting /var"
+  vars:
+    mount_point: '/var'
+  ansible.posix.mount:
+    path: "{{ mount_point }}"
+    state: remounted
+  listen: "Remount /var"
+
+- name: "Adding options for /var/tmp"
+  vars:
+    mount_point: '/var/tmp'
+  ansible.posix.mount:
+    path: "{{ mount_point }}"
+    src: "{{ prelim_mount_point_fs_and_options[mount_point]['src'] }}"
+    state: present
+    fstype: "{{ prelim_mount_point_fs_and_options[mount_point]['fs_type'] }}"
+    opts: "{{ prelim_mount_point_fs_and_options[mount_point]['options'] | unique | join(',') }}"
+  listen: "Remount /var/tmp"
+
+- name: "Remounting /var/tmp"
+  vars:
+    mount_point: '/var/tmp'
+  ansible.posix.mount:
+    path: "{{ mount_point }}"
+    state: remounted
+  listen: "Remount /var/tmp"
+
+- name: "Adding options for /var/log"
+  vars:
+    mount_point: '/var/log'
+  ansible.posix.mount:
+    path: "{{ mount_point }}"
+    src: "{{ prelim_mount_point_fs_and_options[mount_point]['src'] }}"
+    state: present
+    fstype: "{{ prelim_mount_point_fs_and_options[mount_point]['fs_type'] }}"
+    opts: "{{ prelim_mount_point_fs_and_options[mount_point]['options'] | unique | join(',') }}"
+  listen: "Remount /var/log"
+
+- name: "Remounting /var/log"
+  vars:
+    mount_point: '/var/log'
+  ansible.posix.mount:
+    path: "{{ mount_point }}"
+    state: remounted
+  listen: "Remount /var/log"
+
+- name: "Adding options for /var/log/audit"
+  vars:
+    mount_point: '/var/log/audit'
+  ansible.posix.mount:
+    path: "{{ mount_point }}"
+    src: "{{ prelim_mount_point_fs_and_options[mount_point]['src'] }}"
+    state: present
+    fstype: "{{ prelim_mount_point_fs_and_options[mount_point]['fs_type'] }}"
+    opts: "{{ prelim_mount_point_fs_and_options[mount_point]['options'] | unique | join(',') }}"
+  listen: "Remount /var/log/audit"
+
+- name: "Remounting /var/log/audit"
+  vars:
+    mount_point: '/var/log/audit'
+  ansible.posix.mount:
+    path: "{{ mount_point }}"
+    state: remounted
+  listen: "Remount /var/log/audit"
+
+- name: Grub update
+  ansible.builtin.command: grub2-mkconfig -o /boot/grub2/grub.cfg
+  changed_when: true
+  failed_when: false
+  notify: Set_reboot_required
+
+- name: Reload systemctl
+  ansible.builtin.systemd:
+    daemon_reload: true
+  listen: Reload systemctl
+
+- name: Update Crypto Policy
+  ansible.builtin.set_fact:
+    suse16cis_full_crypto_policy: "{{ suse16cis_crypto_policy }}{{ suse16cis_crypto_policy_module }}{% if suse16cis_additional_crypto_policy_module | length > 0 %}:{{ suse16cis_additional_crypto_policy_module }}{% endif %}"
+  notify: Set Crypto Policy
+
+- name: Set Crypto Policy
+  # default('') guards the case where the 1.6.2 crypto-policy gather was skipped
+  # (e.g. crypto rules disabled): the register is then a dict with no .stdout,
+  # so the handler no-ops instead of erroring on a missing attribute.
+  when: discovered_system_wide_crypto_policy.stdout | default('') != suse16cis_full_crypto_policy
+  ansible.builtin.command: |
+    update-crypto-policies --set "{{ suse16cis_full_crypto_policy }}"
+  changed_when: true
+  notify:
+    - Set_reboot_required
+    - Restart sshd
+
+- name: Update dconf
+  ansible.builtin.command: dconf update
+  changed_when: true
+  failed_when: false
+  listen: Reload dconf
+
+- name: Reload firewalld
+  ansible.builtin.systemd:
+    name: firewalld
+    state: reloaded
+  listen: Reload firewalld
+
+- name: Restart postfix
+  ansible.builtin.service:
+    name: postfix
+    state: restarted
+
+- name: Restart chronyd
+  when: not system_is_container
+  ansible.builtin.systemd:
+    name: chronyd
+    state: restarted
+
+- name: Restart rsyslog
+  ansible.builtin.systemd:
+    name: rsyslog
+    state: restarted
+
+- name: Restart journald
+  ansible.builtin.systemd:
+    name: systemd-journald
+    state: restarted
+
+- name: Restart exim4
+  ansible.builtin.systemd:
+    name: exim4
+    state: restarted
+
+- name: Reload sysctl
+  ansible.builtin.command: sysctl --system
+  changed_when: true
+
+- name: Flush ipv4 route table
+  when: ansible_facts['virtualization_type'] != "docker"
+  ansible.posix.sysctl:
+    name: net.ipv4.route.flush
+    value: '1'
+    sysctl_set: true
+
+- name: Flush ipv6 route table
+  when:
+    - ansible_facts['virtualization_type'] != "docker"
+    - suse16cis_ipv6_required
+  ansible.posix.sysctl:
+    name: net.ipv6.route.flush
+    value: '1'
+    sysctl_set: true
+
+- name: Auditd rules reload
+  when:
+    - not system_is_container
+    - (discovered_auditd_immutable_check.stdout | default('0') | trim) == '0'
+    - "'No change' not in (discovered_audit_rules_diff.stdout | default(''))"
+  ansible.builtin.command: augenrules --load
+  changed_when: true
+  listen: update auditd
+
+- name: Audit_immutable_fact
+  when:
+    - discovered_audit_rules_updated.changed | default(false)
+    - (discovered_auditd_immutable_check.stdout | default('0') | trim) != '0'
+  ansible.builtin.debug:
+    msg: "Reboot required for auditd to apply new rules as immutable set"
+  notify: Set_reboot_required
+
+- name: Stop auditd process
+  when: not system_is_container
+  ansible.builtin.command: systemctl kill auditd  # noqa command-instead-of-module
+  changed_when: true
+  listen: Restart auditd
+
+- name: Start auditd process
+  when: not system_is_container
+  ansible.builtin.systemd_service:
+    name: auditd
+    state: started
+  listen: Restart auditd
+
+- name: Restart sshd
+  ansible.builtin.systemd:
+    name: sshd
+    state: restarted
+
+- name: Update pam-config
+  when: suse16cis_use_pam_config
+  ansible.builtin.command: pam-config --update
+  changed_when: true
+
+- name: Reapply pam_pwhistory use_authtok
+  when:
+    - suse16cis_use_pam_config
+    - suse16cis_rule_5_3_2_3_3
+    - suse16cis_disruption_high
+  ansible.builtin.command: pam-config -a --pwhistory --pwhistory-use_authtok
+  changed_when: true
+  listen: Update pam-config
+
+- name: Set_reboot_required
+  ansible.builtin.set_fact:
+    change_requires_reboot: true

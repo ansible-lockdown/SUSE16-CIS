@@ -1,0 +1,5 @@
+{{ file_managed_by_ansible }}
+
+{% for server in suse16cis_time_servers %}
+server {{ server.name }} {{ server.options }}
+{% endfor %}

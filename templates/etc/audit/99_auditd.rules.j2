@@ -1,0 +1,148 @@
+{{ file_managed_by_ansible }}
+### YOUR CHANGES WILL BE LOST!
+
+# This template will set all of the auditd configurations via a handler in the role in one task instead of individually
+{% if suse16cis_rule_6_2_3_33 %}
+-c
+{% endif %}
+{% if suse16cis_rule_6_2_3_1 %}
+-a always,exit -F arch=b64 -S all -F path=/etc/sudoers -F perm=wa -k scope
+-a always,exit -F arch=b64 -S all -F dir=/etc/sudoers.d -F perm=wa -k scope
+{% endif %}
+{% if suse16cis_rule_6_2_3_2 %}
+{% set syscalls = ["execve"] %}
+{% set arch_syscalls = syscalls | select("in", supported_syscalls) | list %}
+-a always,exit -F arch=b64 -C euid!=uid -F auid!=unset -S {{ arch_syscalls|join(',') }} -k user_emulation
+{% endif %}
+{% if suse16cis_rule_6_2_3_3 %}
+-a always,exit -F arch=b64 -S all -F path={{ suse16cis_sudolog_location }} -F perm=wa -k sudo_log_file
+{% endif %}
+{% if suse16cis_rule_6_2_3_4 %}
+{% set syscalls = ["adjtimex","settimeofday"] %}
+{% set arch_syscalls = syscalls | select("in", supported_syscalls) | list %}
+-a always,exit -F arch=b64 -S {{ arch_syscalls|join(',') }} -k time-change
+{% set syscalls = ["clock_settime"] %}
+{% set arch_syscalls = syscalls | select("in", supported_syscalls) | list %}
+-a always,exit -F arch=b64 -S {{ arch_syscalls|join(',') }} -F a0=0x0 -k time-change
+-a always,exit -F arch=b64 -S all -F path=/etc/localtime -F perm=wa -k time-change
+{% endif %}
+{% if suse16cis_rule_6_2_3_5 %}
+{% set syscalls = ["sethostname","setdomainname"] %}
+{% set arch_syscalls = syscalls | select("in", supported_syscalls) | list %}
+-a always,exit -F arch=b64 -S {{ arch_syscalls|join(',') }} -k system-locale
+{% endif %}
+{% if suse16cis_rule_6_2_3_6 %}
+-a always,exit -F arch=b64 -S all -F path=/etc/issue -F perm=wa -k system-locale
+-a always,exit -F arch=b64 -S all -F path=/etc/issue.net -F perm=wa -k system-locale
+{% endif %}
+{% if suse16cis_rule_6_2_3_7 %}
+-a always,exit -F arch=b64 -S all -F path=/etc/hosts -F perm=wa -k system-locale
+-a always,exit -F arch=b64 -S all -F path=/etc/hostname -F perm=wa -k system-locale
+{% endif %}
+{% if suse16cis_rule_6_2_3_8 %}
+-a always,exit -F arch=b64 -S all -F dir=/etc/NetworkManager/ -F perm=wa -k system-locale
+{% endif %}
+{% if suse16cis_rule_6_2_3_9 %}
+{% for proc in discovered_priv_procs.stdout_lines -%}
+-a always,exit -F arch=b64 -S all -F path={{ proc }} -F perm=x -F auid>={{ min_int_uid }} -F auid!=unset -k privileged
+{% endfor %}
+{% endif %}
+{% if suse16cis_rule_6_2_3_10 %}
+{% set syscalls = ["creat","open","openat","truncate","ftruncate"] %}
+{% set arch_syscalls = syscalls | select("in", supported_syscalls) | list %}
+-a always,exit -F arch=b64 -S {{ arch_syscalls|join(',') }} -F exit=-EACCES -F auid>={{ min_int_uid }} -F auid!=unset -k access
+-a always,exit -F arch=b64 -S {{ arch_syscalls|join(',') }} -F exit=-EPERM -F auid>={{ min_int_uid }} -F auid!=unset -k access
+{% endif %}
+{% if suse16cis_rule_6_2_3_11 %}
+-a always,exit -F arch=b64 -S all -F path=/etc/group -F perm=wa -k identity
+{% endif %}
+{% if suse16cis_rule_6_2_3_12 %}
+-a always,exit -F arch=b64 -S all -F path=/etc/passwd -F perm=wa -k identity
+{% endif %}
+{% if suse16cis_rule_6_2_3_13 %}
+-a always,exit -F arch=b64 -S all -F path=/etc/gshadow -F perm=wa -k identity
+-a always,exit -F arch=b64 -S all -F path=/etc/shadow -F perm=wa -k identity
+{% endif %}
+{% if suse16cis_rule_6_2_3_14 %}
+-a always,exit -F arch=b64 -S all -F path=/etc/security/opasswd -F perm=wa -k identity
+{% endif %}
+{% if suse16cis_rule_6_2_3_15 %}
+-a always,exit -F arch=b64 -S all -F dir=/etc/pam.d/ -F perm=wa -k pam
+{% endif %}
+{% if suse16cis_rule_6_2_3_16 %}
+{% set syscalls = ["chmod","fchmod","fchmodat","fchmodat2"] %}
+{% set arch_syscalls = syscalls | select("in", supported_syscalls) | list %}
+-a always,exit -F arch=b64 -S {{ arch_syscalls|join(',') }} -F auid>={{ min_int_uid }} -F auid!=unset -k perm_mod
+{% endif %}
+{% if suse16cis_rule_6_2_3_17 %}
+{% set syscalls = ["chown","fchown","lchown","fchownat"] %}
+{% set arch_syscalls = syscalls | select("in", supported_syscalls) | list %}
+-a always,exit -F arch=b64 -S {{ arch_syscalls|join(',') }} -F auid>={{ min_int_uid }} -F auid!=unset -k perm_mod
+{% endif %}
+{% if suse16cis_rule_6_2_3_18 %}
+{% set syscalls = ["setxattr","lsetxattr","fsetxattr","removexattr","lremovexattr","fremovexattr"] %}
+{% set arch_syscalls = syscalls | select("in", supported_syscalls) | list %}
+-a always,exit -F arch=b64 -S {{ arch_syscalls|join(',') }} -F auid>={{ min_int_uid }} -F auid!=unset -k perm_mod
+{% endif %}
+{% if suse16cis_rule_6_2_3_19 %}
+{% set syscalls = ["mount"] %}
+{% set arch_syscalls = syscalls | select("in", supported_syscalls) | list %}
+-a always,exit -F arch=b64 -S {{ arch_syscalls|join(',') }} -F auid>={{ min_int_uid }} -F auid!=unset -k mounts
+{% endif %}
+{% if suse16cis_rule_6_2_3_20 %}
+-a always,exit -F arch=b64 -S all -F path=/var/run/utmp -F perm=wa -k session
+-a always,exit -F arch=b64 -S all -F path=/var/log/wtmp -F perm=wa -k session
+-a always,exit -F arch=b64 -S all -F path=/var/log/btmp -F perm=wa -k session
+{% endif %}
+{% if suse16cis_rule_6_2_3_21 %}
+-a always,exit -F arch=b64 -S all -F path=/var/log/lastlog -F perm=wa -k logins
+-a always,exit -F arch=b64 -S all -F path=/var/run/faillock -F perm=wa -k logins
+{% endif %}
+{% if suse16cis_rule_6_2_3_22 %}
+{% set syscalls = ["unlink","unlinkat"] %}
+{% set arch_syscalls = syscalls | select("in", supported_syscalls) | list %}
+-a always,exit -F arch=b64 -S {{ arch_syscalls|join(',') }} -F auid>={{ min_int_uid }} -F auid!=unset -k delete
+{% endif %}
+{% if suse16cis_rule_6_2_3_23 %}
+{% set syscalls = ["rename","renameat","renameat2"] %}
+{% set arch_syscalls = syscalls | select("in", supported_syscalls) | list %}
+-a always,exit -F arch=b64 -S {{ arch_syscalls|join(',') }} -F auid>={{ min_int_uid }} -F auid!=unset -k delete
+{% endif %}
+{% if suse16cis_rule_6_2_3_24 %}
+-a always,exit -F arch=b64 -S all -F path=/etc/selinux -F perm=wa -k MAC-policy
+-a always,exit -F arch=b64 -S all -F path=/usr/share/selinux -F perm=wa -k MAC-policy
+-a always,exit -F arch=b64 -S all -F path=/var/lib/selinux -F perm=wa -k MAC-policy
+{% endif %}
+{% if suse16cis_rule_6_2_3_25 %}
+-a always,exit -F arch=b64 -S all -F path=/usr/bin/chcon -F perm=x -F auid>={{ min_int_uid }} -F auid!=unset -k perm_chng
+{% endif %}
+{% if suse16cis_rule_6_2_3_26 %}
+-a always,exit -F arch=b64 -S all -F path=/usr/bin/setfacl -F perm=x -F auid>={{ min_int_uid }} -F auid!=unset -k perm_chng
+{% endif %}
+{% if suse16cis_rule_6_2_3_27 %}
+-a always,exit -F arch=b64 -S all -F path=/usr/bin/chacl -F perm=x -F auid>={{ min_int_uid }} -F auid!=unset -k perm_chng
+{% endif %}
+{% if suse16cis_rule_6_2_3_28 %}
+-a always,exit -F arch=b64 -S all -F path=/usr/sbin/usermod -F perm=x -F auid>={{ min_int_uid }} -F auid!=unset -k usermod
+{% endif %}
+{% if suse16cis_rule_6_2_3_29 %}
+-a always,exit -F arch=b64 -S all -F path=/usr/bin/kmod -F perm=x -F auid>={{ min_int_uid }} -F auid!=unset -k kernel_modules
+{% endif %}
+{% if suse16cis_rule_6_2_3_30 %}
+{% set syscalls = ["init_module","finit_module"] %}
+{% set arch_syscalls = syscalls | select("in", supported_syscalls) | list %}
+-a always,exit -F arch=b64 -S {{ arch_syscalls|join(',') }} -F auid>={{ min_int_uid }} -F auid!=unset -k kernel_modules
+{% endif %}
+{% if suse16cis_rule_6_2_3_31 %}
+{% set syscalls = ["delete_module"] %}
+{% set arch_syscalls = syscalls | select("in", supported_syscalls) | list %}
+-a always,exit -F arch=b64 -S {{ arch_syscalls|join(',') }} -F auid>={{ min_int_uid }} -F auid!=unset -k kernel_modules
+{% endif %}
+{% if suse16cis_rule_6_2_3_32 %}
+{% set syscalls = ["create_module","query_module"] %}
+{% set arch_syscalls = syscalls | select("in", supported_syscalls) | list %}
+-a always,exit -F arch=b64 -S {{ arch_syscalls|join(',') }} -F auid>={{ min_int_uid }} -F auid!=unset -k kernel_modules
+{% endif %}
+{% if suse16cis_rule_6_2_3_34 %}
+-e 2
+{% endif %}

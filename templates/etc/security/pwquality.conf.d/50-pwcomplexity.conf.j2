@@ -1,0 +1,11 @@
+{{ file_managed_by_ansible }}
+# 5.3.2.2.4 Ensure password complexity is configured
+{% if suse16cis_passwd_complex_option == 'minclass' %}  # pragma: allowlist secret
+minclass = {{ suse16cis_passwd_minclass_value }}
+{% endif %}
+{% if suse16cis_passwd_complex_option == 'credits' %}  # pragma: allowlist secret
+dcredit = {{suse16cis_passwd_dcredit_value }}
+ucredit = {{ suse16cis_passwd_ucredit_value }}
+ocredit = {{ suse16cis_passwd_ocredit_value }}
+lcredit = {{ suse16cis_passwd_lcredit_value }}
+{% endif %}
